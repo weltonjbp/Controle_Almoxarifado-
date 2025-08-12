@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Almoxarifado{% endblock %}
+
+{% block header_title %}Dashboard{% endblock %}
+
+{% block content %}
+    <section id="dashboard" class="content-section"></section>
+    <section id="produtos" class="content-section"></section>
+    <section id="movimentacoes" class="content-section"></section>
+    <section id="relatorios" class="content-section"></section>
+    <section id="categorias" class="content-section"></section>
+    <section id="almoxarifados" class="content-section"></section>
+    <section id="setores" class="content-section"></section>
+    <section id="funcoes" class="content-section"></section>
+    <section id="usuarios" class="content-section"></section>
+    <section id="tipos_combustivel" class="content-section"></section>
+    <section id="tipos_veiculo" class="content-section"></section>
+    <section id="veiculos" class="content-section"></section>
+    <section id="controle_combustivel" class="content-section"></section>
+{% endblock %}
+
+{% block scripts %}
+    <div id="form-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h3 id="modal-title" class="text-2xl font-bold text-gray-800"></h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-3xl font-light">&times;</button>
+            </div>
+            <form id="modal-form"></form>
+        </div>
+    </div>
+
+    <script>
+        // Cria um objeto global para passar dados do Flask para o JS
+        window.APP_CONFIG = {
+            USER_ROLE: "{{ current_user.role }}"
+        };
+    </script>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% endblock %}
