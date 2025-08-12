@@ -1,69 +1,100 @@
-Guia do Utilizador: Sistema de Controlo de Almoxarifado e Frota
 
- 1. Bem-vindo ao Sistema!
+ 📘 Guia do Utilizador – Sistema de Controle de Almoxarifado e Frota
 
-Bem-vindo ao Sistema de Controlo Integrado da Fazenda. Esta ferramenta foi desenhada para simplificar e otimizar a gestão dos seus recursos, dividida em dois grandes módulos: Almoxarifado e Controlo de Frota.
+Bem-vindo ao Sistema!
+O Sistema de Controle Integrado da Fazenda foi desenvolvido para simplificar e otimizar a gestão de recursos, dividido em dois módulos principais:
 
-A finalidade principal é dar-lhe uma visão clara e em tempo real do seu stock, do uso dos seus veículos e do consumo de combustível, ajudando a tomar decisões mais rápidas e a reduzir custos.
+ Almoxarifado
+ Controle de Frota
 
- 2. Primeiros Passos: A Ordem Correta dos Cadastros
+Ele oferece visão clara e em tempo real do estoque, do uso de veículos e do consumo de combustível, ajudando a tomar decisões rápidas e reduzir custos.
 
-Para que o sistema funcione corretamente, é fundamental que os cadastros básicos sejam feitos primeiro, pois muitas telas dependem umas das outras. Siga esta ordem para evitar problemas:
 
-Módulo de Almoxarifado (Ordem Recomendada):
 
-1.  Setores: Comece por aqui. Cadastre os setores que requisitam materiais (ex: "Manutenção", "Cultivo Sul", "Avicultura"). Isto é essencial para o registo de saídas de produtos.
-2.  Almoxarifados: Cadastre os locais físicos onde os produtos são guardados (ex: "Almoxarifado Central", "Depósito de Insumos").
-3.  Categorias: Crie as categorias para organizar os seus produtos (ex: "Ferramentas", "Peças de Reposição", "Insumos Agrícolas").
-4.  Produtos: Com os cadastros anteriores feitos, agora pode registar os seus produtos, associando cada um a uma Categoria e a um Almoxarifado.
+ 🚀 Primeiros Passos – Ordem Correta dos Cadastros
 
-Módulo de Controlo de Frota (Ordem Recomendada):
+> Para que tudo funcione sem erros, siga a sequência abaixo. Muitos cadastros dependem de outros.
 
-1.  Funções: Cadastre as atividades ou tarefas que os veículos realizam (ex: "Lavoura", "Transporte de Colheita", "Aplicação de Defensivos").
-2.  Tipos de Combustível: Registe os combustíveis que a sua frota utiliza (ex: "Diesel S10", "Gasolina", "Etanol").
-3.  Tipos de Veículo: Classifique a sua frota (ex: "Trator", "Camião", "Viatura Leve").
-4.  Veículos: Agora, cadastre cada veículo individualmente (ex: "Trator Valtra A950", "Camião Mercedes-Benz Atego"), associando cada um ao seu respetivo Tipo de Veículo.
+ 1️⃣ Módulo de Almoxarifado (ordem recomendada)
 
-Administração (Apenas para Gerentes):
+1. Setores – Cadastre as áreas que solicitam materiais.
+   Ex.: “Manutenção”, “Cultivo Sul”, “Avicultura”
+2. Almoxarifados – Locais físicos de armazenamento.
+   Ex.: “Almoxarifado Central”, “Depósito de Insumos”
+3. Categorias – Organize os produtos.
+   Ex.: “Ferramentas”, “Peças de Reposição”, “Insumos Agrícolas”
+4. Produtos – Registre cada item, associando à Categoria e ao Almoxarifado.
 
- Utilizadores: O cadastro de novos utilizadores ("supervisores" ou "gerentes") pode ser feito a qualquer momento pelo gerente do sistema.
 
----
 
- 3. Funcionalidades dos Módulos
+ 2️⃣ Módulo de Controle de Frota (ordem recomendada)
 
- Dashboard
- Finalidade: É o seu painel de controlo principal. Oferece uma visão geral e imediata do estado do seu almoxarifado, mostrando totais, alertas e as últimas movimentações registadas. É a primeira página que deve consultar para ter um pulso rápido da operação.
+1. Funções – Atividades realizadas pelos veículos.
+   Ex.: “Lavoura”, “Transporte de Colheita”
+2. Tipos de Combustível – Combustíveis usados pela frota.
+   Ex.: “Diesel S10”, “Gasolina”
+3. Tipos de Veículo – Classificação dos veículos.
+   Ex.: “Trator”, “Caminhão”
+4. Veículos – Registre cada veículo individualmente.
+   Ex.: “Trator Valtra A950”, “Caminhão Mercedes-Benz Atego”
 
- Controlo de Almoxarifado
- Produtos e Cadastros Associados: A finalidade é ter um inventário digital completo e organizado. Saber exatamente o que tem, onde está e a que grupo pertence.
- Movimentações: Este é o coração do controlo de stock.
-     Funcionalidade: Registe cada entrada (compra) e saída (requisição por um setor) de produtos. O sistema atualiza o stock automaticamente.
-     Finalidade: Manter a precisão do inventário, evitar perdas e garantir que nunca falte um item essencial.
 
- Controlo de Frota e Combustível
- Cadastros da Frota (Veículos, Funções, etc.): A finalidade é organizar e catalogar todos os ativos da sua frota.
- Controlo de Combustível: Este é o módulo central para a gestão da frota.
-     Funcionalidade: A tela é dividida em duas partes principais: Entradas (para registar o abastecimento dos seus tanques de combustível) e Saídas (para registar cada abastecimento de um veículo). No registo de saída, você vincula o combustível a um Veículo, a uma Função (o que ele foi fazer), às horas trabalhadas e a quem fez o registo.
-     Finalidade: Obter um controlo preciso sobre o maior custo de uma frota. Permite analisar quais veículos ou tarefas consomem mais, identificar possíveis desvios e gerir o seu stock de combustível de forma eficiente.
+
+ 3️⃣ Administração (somente gerentes)
+
+ Utilizadores – Cadastro e gestão de usuários do sistema.
+
+
+
+ 📊 Funcionalidades dos Módulos
+
+ Painel de Controle (Dashboard)
+
+ Finalidade: Visão geral do almoxarifado e da frota, com totais, alertas e últimas movimentações.
+
+
+
+ Controle de Almoxarifado
+
+ Produtos e Cadastros Associados – Inventário digital detalhado.
+ Movimentos – Registro de entradas e saídas de produtos.
+ Objetivo: Precisão no inventário, evitando faltas e perdas.
+
+
+
+ Controle de Frota
+
+ Cadastro da Frota – Organização de veículos, funções e tipos de combustível.
+ Controle de Combustível – Registro de entradas (abastecimento de tanques) e saídas (abastecimento de veículos).
+ Objetivo: Monitorar custos, identificar desvios e otimizar consumo.
+
+
 
  Relatórios
- Funcionalidade: Permite filtrar todas as movimentações de produtos por um período de datas e visualizar na tela.
- Gerar PDF: A sua principal funcionalidade é a capacidade de exportar o relatório filtrado para um PDF profissional.
- Finalidade: Criar documentos oficiais para arquivo, partilha, auditorias ou análises mais aprofundadas, de uma forma limpa e fácil de ler.
 
- 4. Perfis de Utilizador e Usabilidade
+ Filtros – Buscar movimentações por período.
+ Exportar PDF – Criar relatórios profissionais para arquivo, auditoria e análise.
 
-O sistema foi desenhado com dois níveis de acesso para garantir a segurança dos dados:
 
- Supervisor:
-     O que pode fazer: Visualizar todas as informações, registar novos produtos, veículos, etc., e, mais importante, registar as movimentações do dia a dia (entradas e saídas de produtos e combustível).
-     O que NÃO pode fazer: Editar ou apagar qualquer registo já feito. Os botões de "Editar" e "Apagar" não aparecerão na sua tela.
-     Finalidade do Perfil: Ideal para os operadores do dia a dia que precisam de alimentar o sistema com dados, sem o risco de alterarem ou apagarem informações importantes acidentalmente.
 
- Gerente:
-     O que pode fazer: Tudo. Tem acesso total a todas as funcionalidades, incluindo visualizar, cadastrar, editar e apagar qualquer registo.
-     Acesso Exclusivo: É o único que pode aceder à secção de "Administração" para criar e gerir os utilizadores do sistema.
-     Finalidade do Perfil: Para o responsável pela gestão geral, que precisa da capacidade de corrigir erros, ajustar cadastros e controlar quem acede ao sistema.
+ 👥 Perfis de Utilização
 
-Esperamos que este guia o ajude a tirar o máximo proveito do sistema!
+ Supervisor
+
+ Pode: Visualizar, cadastrar e registrar movimentações.
+ Não pode: Editar ou apagar registros.
+ Indicado para: Operadores de rotina.
+
+ Gerente
+
+ Pode: Tudo, incluindo editar/apagar registros.
+ Acesso Exclusivo: Administração e gestão de usuários.
+ Indicado para: Gestor geral do sistema.
+
+
+
+ ✅ Dicas Finais
+
+ Cadastre sempre na ordem recomendada.
+ Use relatórios para tomar decisões rápidas.
+ Supervisores alimentam o sistema; gerentes mantêm a organização.
