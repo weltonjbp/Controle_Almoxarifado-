@@ -723,12 +723,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            showSection(link.dataset.section);
+            link.addEventListener('click', (e) => {
+                // VERIFICAÇÃO: Apenas executa o código se o link tiver o atributo 'data-section'
+                if (link.hasAttribute('data-section')) {
+                    e.preventDefault(); // Previne o comportamento padrão apenas para links internos
+                    showSection(link.dataset.section);
+                }
+                // Se o link não tiver 'data-section' (como o nosso link do tutorial),
+                // este código é ignorado, e o link funciona como um hyperlink normal.
+            });
         });
-    });
 
     // Inicialização
     showSection('dashboard');
 });
+
