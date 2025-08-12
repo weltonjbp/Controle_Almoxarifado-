@@ -23,6 +23,10 @@ def entry_point():
 def dashboard_page():
     return render_template('index.html', user_role=current_user.role)
 
+@main_bp.route('/tutorial')
+def tutorial_page():
+    return render_template('tutorial.html')
+
 # --- API PARA O DASHBOARD (já estava correta, mas revisada) ---
 @main_bp.route('/api/dashboard-stats')
 @login_required # <-- Garantir que está aqui também
@@ -46,4 +50,5 @@ def dashboard_stats():
         return jsonify(stats)
     except Exception as e:
         print(f"ERRO NA API DO DASHBOARD: {e}")
+
         return jsonify({"error": "Ocorreu um erro interno no servidor."}), 500
