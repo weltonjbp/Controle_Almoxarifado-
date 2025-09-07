@@ -1,7 +1,7 @@
 # Em app/routes/combustivel.py
 
 from flask import Blueprint, jsonify, request
-from ..models import db, CombustivelEstoque, CombustivelEntrada, CombustivelSaida, TipoCombustivel
+from ..models import db, CombustivelEstoque, CombustivelEntrada, CombustivelSaida, TipoCombustivel, Veiculo
 from flask_login import login_required, current_user
 
 combustivel_bp = Blueprint('combustivel', __name__)
@@ -25,6 +25,7 @@ def get_dados_combustivel():
         'funcao_nome': s.funcao.nome,
         'quantidade': s.quantidade_abastecida,
         'horas': s.horas_trabalhadas,
+        'hodometro_horimetro': s.hodometro_horimetro, # <-- Adicionado
         'usuario_nome': s.usuario.username
     } for s in saidas]
 
@@ -57,7 +58,8 @@ def registrar_entrada():
         preco_litro=data['preco_litro'],
         tipo_combustivel_id=data['tipo_combustivel_id'],
         usuario_id=current_user.id,
-        observacao=data.get('observacao')
+        observacao=data.get('observacao'),
+        fornecedor_id=data.get('fornecedor_id') if data.get('fornecedor_id') else None
     )
     db.session.add(nova_entrada)
     db.session.commit()
@@ -70,11 +72,9 @@ def registrar_entrada():
 def registrar_saida():
     data = request.get_json()
     
-    # Validação
-    if not all(k in data for k in ['tipo_combustivel_id', 'quantidade_abastecida', 'veiculo_id', 'funcao_id', 'horas_trabalhadas']):
+    if not all(k in data for k in ['tipo_combustivel_id', 'quantidade_abastecida', 'veiculo_id', 'funcao_id', 'horas_trabalhadas', 'hodometro_horimetro']):
         return jsonify({'error': 'Dados incompletos.'}), 400
 
-    # Verifica o stock
     estoque = CombustivelEstoque.query.filter_by(tipo_combustivel_id=data['tipo_combustivel_id']).first()
     quantidade_saida = float(data['quantidade_abastecida'])
 
@@ -83,14 +83,25 @@ def registrar_saida():
         
     estoque.quantidade -= quantidade_saida
 
-    # Regista a saída
+    # --- LÓGICA DE ATUALIZAÇÃO ADICIONADA AQUI ---
+    # 1. Pega o valor do horímetro do formulário
+    hodometro_valor = data.get('hodometro_horimetro')
+
+    # 2. Atualiza o veículo com o novo valor
+    veiculo = Veiculo.query.get(data['veiculo_id'])
+    if veiculo:
+        veiculo.hodometro_horimetro = hodometro_valor
+        db.session.add(veiculo)
+
+    # 3. Regista a saída, incluindo o horímetro
     nova_saida = CombustivelSaida(
         quantidade_abastecida=quantidade_saida,
         horas_trabalhadas=data['horas_trabalhadas'],
         veiculo_id=data['veiculo_id'],
         funcao_id=data['funcao_id'],
         tipo_combustivel_id=data['tipo_combustivel_id'],
-        usuario_id=current_user.id
+        usuario_id=current_user.id,
+        hodometro_horimetro=hodometro_valor  # <-- Linha adicionada
     )
     db.session.add(nova_saida)
     db.session.commit()

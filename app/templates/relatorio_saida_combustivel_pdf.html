@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Saída de Combustível</title>
+ <style>
+    body {
+        font-family: Helvetica, sans-serif;
+        color: #333;
+        font-size: 10px;
+    }
+    h1 {
+        text-align: center;
+        color: #2c3e50;
+        border-bottom: 2px solid #2c3e50;
+        padding-bottom: 10px;
+    }
+    .header-info {
+        text-align: center;
+        font-size: 12px;
+        color: #7f8c8d;
+        margin-bottom: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 6px;
+        text-align: left;
+    }
+    thead {
+        background-color: #f2f2f2;
+    }
+    .total-row {
+        font-weight: bold;
+        background-color: #f2f2f2;
+    }
+    .text-right {
+        text-align: right;
+    }
+    .footer {
+        position: fixed;
+        bottom: 0;
+        text-align: center;
+        font-size: 10px;
+        color: #95a5a6;
+    }
+</style>
+</head>
+<body>
+    <div class="footer">
+        Gerado em: {{ data_geracao }}
+    </div>
+
+    <h1>Relatório de Saída de Combustível</h1>
+    <div class="header-info">Período de {{ data_inicio }} a {{ data_fim }}</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Veículo</th>
+                <th>Tipo Combustível</th>
+                <th>Função</th>
+                <th class="text-right">Qtd. (L)</th>
+                <th class="text-right">Horímetro</th>
+                <th>Utilizador</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in saidas %}
+            <tr>
+                <td>{{ s.data }}</td>
+                <td>{{ s.veiculo_nome }}</td>
+                <td>{{ s.tipo_combustivel_nome }}</td>
+                <td>{{ s.funcao_nome }}</td>
+                <td class="text-right">{{ "%.2f"|format(s.quantidade) }}</td>
+                <td class="text-right">{{ s.hodometro_horimetro }}</td>
+                <td>{{ s.usuario_nome }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align:center;">Nenhuma saída de combustível registada neste período.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="4">TOTAL GERAL ABASTECIDO</td>
+                <td class="text-right">{{ "%.2f"|format(total_geral) }} L</td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    </table>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registo - Controle de Almoxarifado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
+        <h1 class="text-3xl font-bold text-gray-800">Criar Conta</h1>
+        <p class="text-gray-500 mt-2">Use a chave de acesso fornecida por um gerente.</p>
+        <div id="message-box" class="hidden mt-4 text-sm text-left p-3 rounded-lg"></div>
+        <form id="register-form" class="mt-6">
+            <button type="submit" class="w-full mt-4 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Registar</button>
+        </form>
+        <p class="mt-6 text-sm">Já tem uma conta? <a href="{{ url_for('auth.login_page') }}" class="font-medium text-green-600">Faça login</a></p>
+    </div>
+    <script>
+        // Script para submeter o formulário via fetch e mostrar mensagens
+        // (código JavaScript completo do ficheiro 'register.html' do app.zip)
+    </script>
+</body>
+</html>

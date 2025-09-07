@@ -8,141 +8,236 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .nav-link.active { background-color: #059669; color: white; }
-        .content-section { display: none; }
-        .content-section.active { display: block; }
+<style>
+    body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+    .nav-link.active { background-color: #059669; color: white; }
+    .content-section { display: none; }
+    .content-section.active { display: block; }
 
-        /* --- CSS CORRIGIDO E SIMPLIFICADO --- */
-        .sidebar {
-            transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
-        }
-        
-        /* Estilo da barra lateral encolhida para Desktop */
-        @media (min-width: 768px) {
-            .sidebar.collapsed { width: 80px; }
-            .sidebar.collapsed .sidebar-text,
-            .sidebar.collapsed .sidebar-title { display: none; }
-            .sidebar.collapsed .nav-link { justify-content: center; }
-        }
+    /* Estilo para o submenu dropdown no header */
+    .dropdown-menu {
+        display: none; /* Começa escondido */
+    }
+    .dropdown-menu.show {
+        display: block; /* Mostra quando a classe 'show' é adicionada via JS */
+    }
+</style>
 
-        /* Estilo para ecrãs mobile */
-        @media (max-width: 767px) {
-            .sidebar { position: fixed; transform: translateX(-100%); z-index: 1000; }
-            .sidebar.open { transform: translateX(0); }
-            .overlay.active { display: block; }
-        }
-    </style>
 </head>
 <body class="bg-gray-100">
 
-    <div class="flex h-screen overflow-hidden">
-        <aside id="sidebar" class="sidebar w-64 bg-white shadow-lg flex-shrink-0 h-full flex flex-col">
-            <div class="h-16 flex items-center justify-center px-4 border-b flex-shrink-0">
-                <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mr-3">
-                    <i class="fas fa-warehouse text-white"></i>
-                </div>
-                <div class="sidebar-text">
-                    <h1 class="text-lg font-bold text-gray-900 sidebar-title">Almoxarifado</h1>
-                </div>
-            </div>
-            
-            <nav id="main-nav" class="flex-1 p-4 space-y-2 overflow-y-auto">
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="dashboard"><i class="fas fa-tachometer-alt fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Dashboard</span></a>
-                <p class="px-3 pt-4 pb-2 text-xs text-gray-400 uppercase tracking-wider sidebar-text">Gerenciamento</p>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="produtos"><i class="fas fa-boxes-stacked fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Produtos</span></a>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="movimentacoes"><i class="fas fa-exchange-alt fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Movimentações</span></a>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="relatorios"><i class="fas fa-chart-bar fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Relatórios</span></a>
-                <p class="px-3 pt-4 pb-2 text-xs text-gray-400 uppercase tracking-wider sidebar-text">Controlo de Frota</p>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="funcoes"><i class="fas fa-id-card fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Funções</span></a>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="tipos_combustivel"><i class="fas fa-gas-pump fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Tipos de Combustível</span></a>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="tipos_veiculo"><i class="fas fa-car-side fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Tipos de Veículo</span></a>               
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="veiculos"><i class="fas fa-truck fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Veículos</span></a>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="controle_combustivel"><i class="fas fa-gas-pump fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Controlo Combustível</span></a>
-               
-               
-                <p class="px-3 pt-4 pb-2 text-xs text-gray-400 uppercase tracking-wider sidebar-text">Cadastros</p>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="categorias"><i class="fas fa-tags fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Categorias</span></a>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="almoxarifados"><i class="fas fa-warehouse fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Almoxarifados</span></a>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="setores"><i class="fas fa-building fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Setores</span></a>
-
-                {% if current_user.role == 'gerente' %}
-                <p class="px-3 pt-4 pb-2 text-xs text-gray-400 uppercase tracking-wider sidebar-text">Administração</p>
-                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100" data-section="usuarios"><i class="fas fa-users-cog fa-fw w-6 text-gray-500"></i><span class="sidebar-text ml-3">Utilizadores</span></a>
-                {% endif %}
-            </nav>
-            <div class="p-4 border-t flex-shrink-0">
-                <a href="{{ url_for('main.tutorial_page') }}" target="_blank" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100">
-                    <i class="fas fa-question-circle fa-fw w-6 text-gray-500"></i>
-                    <span class="sidebar-text ml-3">Ajuda / Tutorial</span>
-                </a>
-            </div>              
-        </aside>
-
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
-            
-            <header class="bg-white shadow-sm border-b sticky top-0 z-30 flex-shrink-0">
-                <div class="flex justify-between items-center h-16 px-6">
+    <div class="flex flex-col h-screen">
+        
+        <header class="bg-white shadow-md sticky top-0 z-40">
+            <div class="container mx-auto px-4">
+                <div class="flex justify-between items-center h-16">
                     <div class="flex items-center">
-                        <button id="toggleSidebar" class="mr-4 text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-bars fa-lg"></i>
-                        </button>
+                        <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mr-3">
+                            <i class="fas fa-warehouse text-white"></i>
+                        </div>
+                        <h1 class="text-lg font-bold text-gray-900 hidden sm:block">Almoxarifado F6P</h1>
                     </div>
+
+                    <nav class="hidden md:flex items-center space-x-2">
+                        <a href="#" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100" data-section="dashboard">
+                            <i class="fas fa-tachometer-alt fa-fw mr-2"></i>Dashboard
+                        </a>
+                        
+                        <div class="relative">
+                            <button class="nav-dropdown-toggle flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-cogs fa-fw mr-2"></i>
+                                <span>Gerenciamento</span>
+                                <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                            </button>
+                            <div class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1">
+                                
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="movimentacoes"><i class="fas fa-exchange-alt fa-fw mr-3 text-gray-400"></i>Movimentações</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="controle_combustivel"><i class="fas fa-gas-pump fa-fw mr-3 text-gray-400"></i>Combustível</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="manutencoes"><i class="fas fa-tools fa-fw mr-3 text-gray-400"></i>Manutenções</a>
+                                
+                            </div>
+                        </div>
+
+                        <div class="relative">
+                            <button class="nav-dropdown-toggle flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-chart-bar fa-fw mr-2"></i>
+                                <span>Relatórios</span>
+                                <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                            </button>
+                            <div class="dropdown-menu absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1">
+                                <a href="#" id="relatorio-mov-trigger" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-exchange-alt fa-fw mr-3 text-gray-400"></i>Relatório de Movimentações
+                                </a>
+                               
+                                <a href="#" id="relatorio-man-trigger" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-tools fa-fw mr-3 text-gray-400"></i>Relatório de Custos de Manutenção
+                                </a>
+                                <a href="#" id="relatorio-est-trigger" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-boxes-stacked fa-fw mr-3 text-gray-400"></i>Relatório de Posição de Estoque
+                                </a>
+
+
+                                <a href="#" id="relatorio-saida-combustivel-trigger" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-gas-pump fa-fw mr-3 text-gray-400"></i>Relatório de Saída de Combustível
+                                </a>
+
+                            </div>
+                        </div>
+                        
+                        <div class="relative">
+                            <button class="nav-dropdown-toggle flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-archive fa-fw mr-2"></i>
+                                <span>Cadastros</span>
+                                <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                            </button>
+                            <div class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1">
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="almoxarifados"><i class="fas fa-warehouse fa-fw mr-3 text-gray-400"></i>Almoxarifados</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="setores"><i class="fas fa-building fa-fw mr-3 text-gray-400"></i>Setores</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="categorias"><i class="fas fa-tags fa-fw mr-3 text-gray-400"></i>Categorias</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="produtos"><i class="fas fa-boxes-stacked fa-fw mr-3 text-gray-400"></i>Produtos</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="funcionarios"><i class="fas fa-user-tie fa-fw mr-3 text-gray-400"></i>Funcionários</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="fornecedores"><i class="fas fa-truck-field fa-fw mr-3 text-gray-400"></i>Fornecedores</a>
+                                {% if current_user.role == 'gerente' or current_user.role == 'supervisor' %}
+                                    <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="funcoes"><i class="fas fa-id-card fa-fw mr-3 text-gray-400"></i>Funções</a>
+                                    <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="tipos_combustivel"><i class="fas fa-gas-pump fa-fw mr-3 text-gray-400"></i>Tipos de Combustível</a>
+                                    <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="tipos_veiculo"><i class="fas fa-car-side fa-fw mr-3 text-gray-400"></i>Tipos de Veículo</a>
+                                    <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="veiculos"><i class="fas fa-truck fa-fw mr-3 text-gray-400"></i>Veículos</a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if current_user.role == 'gerente' %}
+                        <div class="relative">
+                            <button class="nav-dropdown-toggle flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-user-shield fa-fw mr-2"></i>
+                                <span>Admin</span>
+                                <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                            </button>
+                            <div class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1">
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="usuarios"><i class="fas fa-users-cog fa-fw mr-3 text-gray-400"></i>Utilizadores</a>
+                                <a href="#" class="nav-link flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-section="codigos_acesso"><i class="fas fa-key fa-fw mr-3 text-gray-400"></i>Chaves de Acesso</a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </nav>
+
                     <div class="flex items-center space-x-4">
                         {% if current_user.is_authenticated %}
                             <div class="text-right hidden sm:block">
                                 <p class="text-sm font-medium text-gray-900">{{ current_user.username }}</p>
                                 <p class="text-xs text-gray-500 capitalize">{{ current_user.role }}</p>
                             </div>
-                            <a href="{{ url_for('auth.logout') }}" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm hover:bg-red-200 transition-colors flex items-center" title="Sair">
+                            <a href="{{ url_for('auth.logout') }}" class="text-gray-500 hover:text-red-600 p-2 rounded-full" title="Sair">
                                 <i class="fas fa-sign-out-alt"></i>
                             </a>
                         {% endif %}
+                        <button id="mobile-menu-button" class="md:hidden text-gray-500 p-2">
+                            <i class="fas fa-bars"></i>
+                        </button>
                     </div>
                 </div>
-            </header>
+            </div>
 
-            <main class="p-4 md:p-6 flex-1 overflow-y-auto">
-                {% block content %}{% endblock %}
-            </main>
-        </div>
+            <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+                <a href="#" class="nav-link flex items-center px-4 py-3 text-base text-gray-700 hover:bg-gray-100" data-section="dashboard"><i class="fas fa-tachometer-alt fa-fw mr-3"></i>Dashboard</a>
+                
+                <h3 class="px-4 pt-3 pb-2 text-sm font-semibold text-gray-500">Gerenciamento</h3>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="movimentacoes"><i class="fas fa-exchange-alt fa-fw mr-3 text-gray-400"></i>Movimentações</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="controle_combustivel"><i class="fas fa-gas-pump fa-fw mr-3 text-gray-400"></i>Combustível</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="manutencoes"><i class="fas fa-tools fa-fw mr-3 text-gray-400"></i>Manutenções</a>
+                
+                
+                <h3 class="px-4 pt-3 pb-2 text-sm font-semibold text-gray-500">Relatórios</h3>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="relatorios"><i class="fas fa-exchange-alt fa-fw mr-3 text-gray-400"></i>Movimentações</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="relatorios"><i class="fas fa-tools fa-fw mr-3 text-gray-400"></i>Custos de Manutenção</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="relatorios"><i class="fas fa-boxes-stacked fa-fw mr-3 text-gray-400"></i>Posição de Estoque</a>
+                
+                <h3 class="px-4 pt-3 pb-2 text-sm font-semibold text-gray-500">Cadastros</h3>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="categorias"><i class="fas fa-tags fa-fw mr-3 text-gray-400"></i>Categorias</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="almoxarifados"><i class="fas fa-warehouse fa-fw mr-3 text-gray-400"></i>Almoxarifados</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="setores"><i class="fas fa-building fa-fw mr-3 text-gray-400"></i>Setores</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="funcoes"><i class="fas fa-id-card fa-fw mr-3 text-gray-400"></i>Funções</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="tipos_combustivel"><i class="fas fa-gas-pump fa-fw mr-3 text-gray-400"></i>Tipos de Combustível</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="tipos_veiculo"><i class="fas fa-car-side fa-fw mr-3 text-gray-400"></i>Tipos de Veículo</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="funcionarios"><i class="fas fa-user-tie fa-fw mr-3 text-gray-400"></i>Funcionários</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="veiculos"><i class="fas fa-truck fa-fw mr-3 text-gray-400"></i>Veículos</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="produtos"><i class="fas fa-boxes-stacked fa-fw mr-3 text-gray-400"></i>Produtos</a>
+                {% if current_user.role == 'gerente' %}
+                <h3 class="px-4 pt-3 pb-2 text-sm font-semibold text-gray-500">Admin</h3>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="usuarios"><i class="fas fa-users-cog fa-fw mr-3 text-gray-400"></i>Utilizadores</a>
+                <a href="#" class="nav-link flex items-center pl-8 pr-4 py-2 text-base text-gray-700 hover:bg-gray-100" data-section="codigos_acesso"><i class="fas fa-key fa-fw mr-3 text-gray-400"></i>Chaves de Acesso</a>
+                {% endif %}
+            </div>
+        </header>
+
+        <main class="p-4 md:p-6 flex-1 overflow-y-auto">
+            {% block content %}{% endblock %}
+        </main>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const toggleSidebarBtn = document.getElementById('toggleSidebar');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- SCRIPT PARA DROPDOWNS DO HEADER (DESKTOP) ---
+        const dropdownToggles = document.querySelectorAll('.nav-dropdown-toggle');
 
-            toggleSidebarBtn.addEventListener('click', () => {
-                if (window.innerWidth < 768) {
-                    sidebar.classList.toggle('open');
-                    overlay.classList.toggle('active');
-                } else {
-                    sidebar.classList.toggle('collapsed');
+        const closeAllDropdowns = () => {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+        };
+
+        dropdownToggles.forEach(toggle => {
+            toggle.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const menu = toggle.nextElementSibling;
+                const isVisible = menu.classList.contains('show');
+                closeAllDropdowns();
+                if (!isVisible) {
+                    menu.classList.add('show');
                 }
             });
+        });
 
-            const closeMobileMenu = () => {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('active');
-            };
+        window.addEventListener('click', () => {
+            closeAllDropdowns();
+        });
 
-            overlay.addEventListener('click', closeMobileMenu);
-            sidebar.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', () => {
-                    if (window.innerWidth < 768) {
-                        closeMobileMenu();
-                    }
-                });
+        // --- SCRIPT PARA MENU MOBILE ---
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        if (mobileMenuButton) {
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+        }
+        
+        mobileMenu.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
             });
         });
+    });
     </script>
     
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // Código para registar o Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js') }}")
+                    .then(registration => {
+                        console.log('Service Worker registado com sucesso:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Registro do Service Worker falhou:', error);
+                    });
+            });
+        }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
-

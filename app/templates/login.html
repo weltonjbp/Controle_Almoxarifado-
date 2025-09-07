@@ -9,39 +9,89 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
+        .loader { border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: #fff; border-radius: 50%; width: 1.25rem; height: 1.25rem; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
     <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm text-center">
         <header class="mb-8">
+            <div class="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-warehouse text-white text-4xl"></i>
+            </div>
             <h1 class="text-3xl font-bold text-gray-800">Almoxarifado</h1>
-            <p class="text-gray-500 mt-2">Faça login para acessar o sistema.</p>
+            <p class="text-gray-500 mt-2">Faça login para aceder ao sistema.</p>
         </header>
 
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6 text-left">
-                    {{ messages[0] }}
-                </div>
-            {% endif %}
-        {% endwith %}
+        <div id="error-message-box" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6 text-left hidden">
+            <strong class="font-bold">Erro!</strong>
+            <span id="error-text" class="block sm:inline"></span>
+        </div>
 
-        <form method="POST" action="{{ url_for('auth.login_submit') }}">
+        <form id="login-form">
             <div class="relative mb-4">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3"><i class="fas fa-user text-gray-400"></i></span>
-                <input type="text" name="username" class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Usuário" required>
+                <input type="text" name="username" class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Utilizador" required>
             </div>
             <div class="relative mb-6">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3"><i class="fas fa-lock text-gray-400"></i></span>
-                <input type="password" name="password" class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Senha" required>
+                <input type="password" name="password" class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Palavra-passe" required>
             </div>
 
-            <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold">
-                Entrar
+            <div class="flex items-center justify-between mb-6 text-sm">
+                <label class="flex items-center">
+                    <input type="checkbox" name="remember" class="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500">
+                    <span class="ml-2 text-gray-600">Lembrar-me</span>
+                </label>
+            </div>
+
+            <button type="submit" id="submit-btn" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center font-semibold">
+                <span class="btn-text">Entrar</span>
+                <div class="loader hidden ml-2"></div>
             </button>
         </form>
     </div>
 
+    <script>
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+            const button = document.getElementById('submit-btn');
+            const btnText = button.querySelector('.btn-text');
+            const loader = button.querySelector('.loader');
+            const errorBox = document.getElementById('error-message-box');
+            const errorText = document.getElementById('error-text');
+
+            button.disabled = true;
+            btnText.textContent = 'Aguarde...';
+            loader.classList.remove('hidden');
+            errorBox.classList.add('hidden');
+
+            fetch("{{ url_for('auth.login_submit') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    throw new Error(data.message || 'Ocorreu um erro desconhecido.');
+                }
+            })
+            .catch(error => {
+                errorText.textContent = error.message;
+                errorBox.classList.remove('hidden');
+            })
+            .finally(() => {
+                button.disabled = false;
+                btnText.textContent = 'Entrar';
+                loader.classList.add('hidden');
+            });
+        });
+    </script>
 </body>
 </html>

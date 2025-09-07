@@ -66,6 +66,20 @@ def create_app(config_class=Config):
     from app.routes.combustivel import combustivel_bp
     app.register_blueprint(combustivel_bp, url_prefix='/api')
     
+    from app.routes.funcionarios import funcionarios_bp
+    app.register_blueprint(funcionarios_bp, url_prefix='/api')
+    
+    from app.routes.manutencoes import manutencoes_bp
+    app.register_blueprint(manutencoes_bp, url_prefix='/api')
+    
+    from app.routes.admin import admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    
+    from app.routes.fornecedores import fornecedores_bp
+    app.register_blueprint(fornecedores_bp, url_prefix='/api')
+    
+    from app.routes.notas_fiscais import notas_fiscais_bp
+    app.register_blueprint(notas_fiscais_bp, url_prefix='/api')
     
         
     return app

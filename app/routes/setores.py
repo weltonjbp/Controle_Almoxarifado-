@@ -10,13 +10,31 @@ setores_bp = Blueprint('setores', __name__)
 # --- Rota GET (Ler) e POST (Criar) - sem alterações ---
 @setores_bp.route('/setores', methods=['GET'])
 def get_setores():
-    # ... código existente ...
-    setores = Setor.query.order_by(Setor.nome).all()
+    # --- LÓGICA DE BUSCA E PAGINAÇÃO ADICIONADA ---
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    search = request.args.get('search', '')
+
+    query = Setor.query
+    if search:
+        query = query.filter(Setor.nome.ilike(f'%{search}%'))
+
+    pagination = query.order_by(Setor.nome).paginate(page=page, per_page=per_page, error_out=False)
+    setores = pagination.items
+    
     setores_data = [{'id': s.id, 'nome': s.nome, 'descricao': s.descricao} for s in setores]
-    return jsonify(setores_data)
+    
+    return jsonify({
+        'data': setores_data,
+        'total_pages': pagination.pages,
+        'current_page': pagination.page,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
+    })
 
 @setores_bp.route('/setores', methods=['POST'])
-# @login_required
+@login_required
+@gerente_required
 def create_setor():
     # ... código existente ...
     data = request.get_json()

@@ -7,15 +7,32 @@ from ..decorators import gerente_required
 
 usuarios_bp = Blueprint('usuarios', __name__)
 
-# Rota para LER (GET) todos os utilizadores
 @usuarios_bp.route('/usuarios', methods=['GET'])
 @login_required
 @gerente_required
 def get_usuarios():
-    users = Usuario.query.order_by(Usuario.username).all()
-    return jsonify([{'id': u.id, 'username': u.username, 'role': u.role} for u in users])
+    # --- LÓGICA DE BUSCA E PAGINAÇÃO ADICIONADA ---
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    search = request.args.get('search', '')
 
-# Rota para LER (GET) um único utilizador por ID
+    query = Usuario.query
+    if search:
+        query = query.filter(Usuario.username.ilike(f'%{search}%'))
+
+    pagination = query.order_by(Usuario.id.asc()).paginate(page=page, per_page=per_page, error_out=False)
+    users = pagination.items
+    
+    users_data = [{'id': u.id, 'username': u.username, 'role': u.role} for u in users]
+
+    return jsonify({
+        'data': users_data,
+        'total_pages': pagination.pages,
+        'current_page': pagination.page,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
+    })
+
 @usuarios_bp.route('/usuarios/<int:id>', methods=['GET'])
 @login_required
 @gerente_required
@@ -23,7 +40,6 @@ def get_usuario(id):
     user = Usuario.query.get_or_404(id)
     return jsonify({'id': user.id, 'username': user.username, 'role': user.role})
 
-# Rota para CRIAR (POST) um novo utilizador
 @usuarios_bp.route('/usuarios', methods=['POST'])
 @login_required
 @gerente_required
@@ -43,42 +59,34 @@ def create_usuario():
     db.session.commit()
     return jsonify({'message': 'Utilizador criado com sucesso!'}), 201
 
-# Rota para ATUALIZAR (PUT) um utilizador existente
 @usuarios_bp.route('/usuarios/<int:id>', methods=['PUT'])
 @login_required
 @gerente_required
 def update_usuario(id):
     user = Usuario.query.get_or_404(id)
     data = request.get_json()
+    
+    novo_username = data.get('username')
+    if novo_username and novo_username != user.username and Usuario.query.filter_by(username=novo_username).first():
+        return jsonify({'error': 'Este nome de utilizador já está em uso.'}), 409
 
-    # Atualiza o nome de utilizador se for fornecido e diferente
-    new_username = data.get('username')
-    if new_username and new_username != user.username:
-        if Usuario.query.filter_by(username=new_username).first():
-            return jsonify({'error': 'Este nome de utilizador já está em uso.'}), 409
-        user.username = new_username
-
-    # Atualiza o perfil (role) se for fornecido
-    if data.get('role'):
-        user.role = data.get('role')
-
-    # Atualiza a senha se for fornecida
+    user.username = novo_username or user.username
+    user.role = data.get('role', user.role)
+    
     if data.get('password'):
-        user.set_password(data.get('password'))
+        user.set_password(data['password'])
         
     db.session.commit()
     return jsonify({'message': 'Utilizador atualizado com sucesso!'})
 
-# Rota para APAGAR (DELETE) um utilizador
 @usuarios_bp.route('/usuarios/<int:id>', methods=['DELETE'])
 @login_required
 @gerente_required
 def delete_usuario(id):
-    user = Usuario.query.get_or_404(id)
-    # Impede que o utilizador se apague a si mesmo
-    if user.id == current_user.id:
+    if id == current_user.id:
         return jsonify({'error': 'Não pode apagar o seu próprio utilizador.'}), 403
         
+    user = Usuario.query.get_or_404(id)
     db.session.delete(user)
     db.session.commit()
     return jsonify({'message': 'Utilizador apagado com sucesso!'})

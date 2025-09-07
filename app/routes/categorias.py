@@ -9,8 +9,27 @@ categorias_bp = Blueprint('categorias', __name__)
 
 @categorias_bp.route('/categorias', methods=['GET'])
 def get_categorias():
-    categorias = Categoria.query.order_by(Categoria.nome).all()
-    return jsonify([{'id': c.id, 'nome': c.nome, 'descricao': c.descricao} for c in categorias])
+    # --- LÓGICA DE BUSCA E PAGINAÇÃO ADICIONADA ---
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    search = request.args.get('search', '')
+
+    query = Categoria.query
+    if search:
+        query = query.filter(Categoria.nome.ilike(f'%{search}%'))
+
+    pagination = query.order_by(Categoria.nome).paginate(page=page, per_page=per_page, error_out=False)
+    categorias = pagination.items
+
+    categorias_data = [{'id': c.id, 'nome': c.nome, 'descricao': c.descricao} for c in categorias]
+    
+    return jsonify({
+        'data': categorias_data,
+        'total_pages': pagination.pages,
+        'current_page': pagination.page,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
+    })
 
 @categorias_bp.route('/categorias/<int:id>', methods=['GET'])
 def get_categoria(id):
@@ -18,6 +37,8 @@ def get_categoria(id):
     return jsonify({'id': categoria.id, 'nome': categoria.nome, 'descricao': categoria.descricao})
 
 @categorias_bp.route('/categorias', methods=['POST'])
+@login_required
+@gerente_required
 def create_categoria():
     data = request.get_json()
     if not data or not data.get('nome'):

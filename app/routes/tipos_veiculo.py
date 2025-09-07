@@ -10,8 +10,27 @@ tipos_veiculo_bp = Blueprint('tipos_veiculo', __name__)
 @tipos_veiculo_bp.route('/tipos_veiculo', methods=['GET'])
 @login_required
 def get_tipos_veiculo():
-    tipos = TipoVeiculo.query.order_by(TipoVeiculo.nome).all()
-    return jsonify([{'id': t.id, 'nome': t.nome} for t in tipos])
+    # --- LÓGICA DE BUSCA E PAGINAÇÃO ADICIONADA ---
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    search = request.args.get('search', '')
+
+    query = TipoVeiculo.query
+    if search:
+        query = query.filter(TipoVeiculo.nome.ilike(f'%{search}%'))
+
+    pagination = query.order_by(TipoVeiculo.nome).paginate(page=page, per_page=per_page, error_out=False)
+    tipos = pagination.items
+    
+    tipos_data = [{'id': t.id, 'nome': t.nome} for t in tipos]
+
+    return jsonify({
+        'data': tipos_data,
+        'total_pages': pagination.pages,
+        'current_page': pagination.page,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
+    })
 
 @tipos_veiculo_bp.route('/tipos_veiculo/<int:id>', methods=['GET'])
 @login_required

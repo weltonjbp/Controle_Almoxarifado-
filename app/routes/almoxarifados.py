@@ -2,14 +2,34 @@
 
 from flask import Blueprint, jsonify, request
 from ..models import db, Almoxarifado
-from ..decorators import gerente_required # Importar nosso novo decorator
+from ..decorators import gerente_required
 from flask_login import login_required
+
 almoxarifados_bp = Blueprint('almoxarifados', __name__)
 
 @almoxarifados_bp.route('/almoxarifados', methods=['GET'])
+@login_required
 def get_almoxarifados():
-    almoxarifados = Almoxarifado.query.order_by(Almoxarifado.nome).all()
-    return jsonify([{'id': a.id, 'nome': a.nome, 'localizacao': a.localizacao} for a in almoxarifados])
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    search = request.args.get('search', '')
+
+    query = Almoxarifado.query
+    if search:
+        query = query.filter(Almoxarifado.nome.ilike(f'%{search}%'))
+
+    pagination = query.order_by(Almoxarifado.nome).paginate(page=page, per_page=per_page, error_out=False)
+    items = pagination.items
+    
+    data = [{'id': a.id, 'nome': a.nome, 'localizacao': a.localizacao} for a in items]
+    
+    return jsonify({
+        'data': data,
+        'total_pages': pagination.pages,
+        'current_page': pagination.page,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
+    })
 
 @almoxarifados_bp.route('/almoxarifados/<int:id>', methods=['GET'])
 def get_almoxarifado(id):
@@ -17,6 +37,8 @@ def get_almoxarifado(id):
     return jsonify({'id': almoxarifado.id, 'nome': almoxarifado.nome, 'localizacao': almoxarifado.localizacao})
 
 @almoxarifados_bp.route('/almoxarifados', methods=['POST'])
+@login_required
+@gerente_required
 def create_almoxarifado():
     data = request.get_json()
     if not data or not data.get('nome'):
@@ -31,7 +53,7 @@ def create_almoxarifado():
 
 @almoxarifados_bp.route('/almoxarifados/<int:id>', methods=['PUT'])
 @login_required
-@gerente_required # <--- SÓ GERENTE PODE DELETAR
+@gerente_required
 def update_almoxarifado(id):
     almoxarifado = Almoxarifado.query.get_or_404(id)
     data = request.get_json()
@@ -46,7 +68,7 @@ def update_almoxarifado(id):
 
 @almoxarifados_bp.route('/almoxarifados/<int:id>', methods=['DELETE'])
 @login_required
-@gerente_required # <--- SÓ GERENTE PODE DELETAR
+@gerente_required
 def delete_almoxarifado(id):
     almoxarifado = Almoxarifado.query.get_or_404(id)
     db.session.delete(almoxarifado)
