@@ -1,73 +1,59 @@
-// Define um nome e versão para o cache. Mude a versão para forçar a atualização.
-const CACHE_NAME = 'almoxarifado-f6p-cache-v1';
-
-// --- CORREÇÃO APLICADA: Links externos removidos ---
-const urlsToCache = [
-    '/dashboard',
-    '/static/js/app.js'
-    // Links externos como 'cdn.tailwindcss.com' foram removidos para evitar erros de CORS.
-];
-
-self.addEventListener('install', event => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Cache aberto. Guardando ficheiros essenciais...');
-                return cache.addAll(urlsToCache);
-            })
-            .catch(err => {
-                console.error('Falha ao abrir ou adicionar ao cache:', err);
-            })
-    );
-});
-
-// Evento de Fetch: Interceta os pedidos à rede.
 self.addEventListener('fetch', event => {
-    // Ignora todos os pedidos que não são GET
-    if (event.request.method !== 'GET') {
-        return;
-    }
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        if (response) {
+          return response;
+        }
 
-    // Estratégia: Cache, e depois rede (Cache falling back to network)
-    event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                // Se o recurso estiver em cache, retorna-o.
-                if (!event.request.url.startsWith('http')) {
-                    return;
-                }
-
-                // Se não estiver em cache, busca na rede.
-                return fetch(event.request).then(
-                    networkResponse => {
-                        // Se o pedido for para a nossa API, não guarda em cache.
-                        if (event.request.url.includes('/api/')) {
-                            return networkResponse;
-                        }
-                        
-                        // Para outros recursos, clona a resposta e guarda em cache para uso futuro.
-                        return caches.open(CACHE_NAME).then(cache => {
-                            cache.put(event.request, networkResponse.clone());
-                            return networkResponse;
-                        });
-                    }
-                );
-            })
-    );
-});
-
-// Evento de Ativação: Limpa caches antigos.
-self.addEventListener('activate', event => {
-    const cacheWhitelist = [CACHE_NAME];
-    event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheWhitelist.indexOf(cacheName) === -1) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
+        return fetch(event.request)
+          .then(networkResponse => {
+            // VERIFICAÇÕES ADICIONAIS
+            if (!networkResponse || !networkResponse.ok) {
+              return networkResponse;
+            }
+            
+            // Não cacheiar requisições de extensões do Chrome
+            if (event.request.url.startsWith('chrome-extension://')) {
+              return networkResponse;
+            }
+            
+            // Apenas respostas GET podem ser cacheiadas
+            if (event.request.method !== 'GET') {
+              return networkResponse;
+            }
+            
+            // Não cacheiar respostas opaque
+            if (networkResponse.type === 'opaque') {
+              return networkResponse;
+            }
+            
+            // Não cacheiar recursos de outros domínios
+            if (!event.request.url.startsWith(self.location.origin)) {
+              return networkResponse;
+            }
+            
+            // Não cacheiar respostas da API
+            if (event.request.url.includes('/api/')) {
+              return networkResponse;
+            }
+            
+            // Apenas para recursos válidos, cacheiar
+            return caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, networkResponse.clone());
+                return networkResponse;
+              });
+          })
+          .catch(error => {
+            console.error('Fetch failed:', error);
+            return caches.match(event.request) || 
+              new Response('Offline', { status: 503 });
+          });
+      })
+      .catch(error => {
+        console.error('Cache match failed:', error);
+        return new Response('Offline', { status: 503 });
+      })
+  );
 });
