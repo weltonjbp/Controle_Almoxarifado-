@@ -85,4 +85,8 @@ def service_worker():
 
 
                                
-                               
+@main_bp.route('/importar-produtos')
+@login_required
+def importar_produtos_page():
+    """ Renderiza a nova página de importação de produtos por XML. """
+    return render_template('importar_produtos.html')                       

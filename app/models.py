@@ -1,6 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime # <--- ADICIONE ESTA LINHA
+from sqlalchemy import UniqueConstraint, ForeignKeyConstraint # <--- ADICIONE ESTA LINHA
 
 db = SQLAlchemy()
 
@@ -143,21 +145,39 @@ class CombustivelSaida(db.Model):
     __tablename__ = 'combustivel_saidas'
     id = db.Column(db.Integer, primary_key=True)
     quantidade_abastecida = db.Column(db.Float, nullable=False)
-    horas_trabalhadas = db.Column(db.Float)
     
-    # --- GARANTIR QUE ESTA LINHA EXISTE ---
+    # --- CAMPOS MODIFICADOS E ADICIONADOS ---
+    data = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    # =====> CAMPOS ALTERADOS <=====
+    horimetro_inicial = db.Column(db.Float)
+    horimetro_final = db.Column(db.Float)
+    horas_trabalhadas = db.Column(db.Float) # Agora armazena a diferença de horímetro
+    # ==============================
     hodometro_horimetro = db.Column(db.Float, nullable=True)
-    
-    data = db.Column(db.DateTime, server_default=db.func.now())
+    descricao = db.Column(db.Text, nullable=True) # Novo campo
+
+    # --- CHAVES ESTRANGEIRAS ---
     veiculo_id = db.Column(db.Integer, db.ForeignKey('veiculos.id'), nullable=False)
     funcao_id = db.Column(db.Integer, db.ForeignKey('funcoes.id'), nullable=False)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     tipo_combustivel_id = db.Column(db.Integer, db.ForeignKey('tipos_combustivel.id'), nullable=False)
-
+    funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=True) # Novo campo
+    implemento_id = db.Column(db.Integer, db.ForeignKey('implementos.id'), nullable=True) # Novo campo
+    __table_args__ = (
+        ForeignKeyConstraint(['veiculo_id'], ['veiculos.id'], name='fk_combustivelsaida_veiculo'),
+        ForeignKeyConstraint(['funcao_id'], ['funcoes.id'], name='fk_combustivelsaida_funcao'),
+        ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], name='fk_combustivelsaida_usuario'),
+        ForeignKeyConstraint(['tipo_combustivel_id'], ['tipos_combustivel.id'], name='fk_combustivelsaida_tipocombustivel'),
+        ForeignKeyConstraint(['funcionario_id'], ['funcionarios.id'], name='fk_combustivelsaida_funcionario'),
+        ForeignKeyConstraint(['implemento_id'], ['implementos.id'], name='fk_combustivelsaida_implemento'),
+    )
+    # --- RELACIONAMENTOS ---
     veiculo = db.relationship('Veiculo')
     funcao = db.relationship('Funcao')
     usuario = db.relationship('Usuario')
     tipo_combustivel = db.relationship('TipoCombustivel')
+    funcionario = db.relationship('Funcionario') # Novo relacionamento
+    implemento = db.relationship('Implemento') # Novo relacionamento
 
 
 class Funcionario(db.Model):
@@ -261,3 +281,9 @@ class NotaFiscal(db.Model):
 
 # --- ATUALIZAÇÃO NA CLASSE FORNECEDOR ---
 # Encontre a sua classe Fornecedor e adicione a linha de relacionamento no final
+
+class Implemento(db.Model):
+    __tablename__ = 'implementos'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False, unique=True)
+    descricao = db.Column(db.String(255), nullable=True)

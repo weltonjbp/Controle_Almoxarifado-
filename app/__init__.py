@@ -3,6 +3,9 @@ from flask import Flask
 from config import Config
 from .models import db, Usuario
 from flask_login import LoginManager
+from flask_migrate import Migrate # <--- 1. ADICIONE ESTE IMPORT
+
+
 
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
@@ -17,6 +20,7 @@ def create_app(config_class=Config):
 
     login_manager = LoginManager()
     login_manager.init_app(app)
+    migrate = Migrate(app, db) # <--- 2. ADICIONE ESTA LINHA
     login_manager.login_view = 'auth.login_page'
 
     @login_manager.user_loader
@@ -80,6 +84,9 @@ def create_app(config_class=Config):
     
     from app.routes.notas_fiscais import notas_fiscais_bp
     app.register_blueprint(notas_fiscais_bp, url_prefix='/api')
+    
+    from app.routes.implementos import implementos_bp
+    app.register_blueprint(implementos_bp, url_prefix='/api')
     
         
     return app

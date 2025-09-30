@@ -62,39 +62,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return result;
         }
     };
-    const relatorioMovTrigger = document.getElementById('relatorio-mov-trigger');
-        if (relatorioMovTrigger) {
-            relatorioMovTrigger.addEventListener('click', (e) => {
-                e.preventDefault();
-                openRelatorioMovimentacoesModal();
-            });
+   // --- Event Listeners para todos os gatilhos de Relatório ---
+document.querySelectorAll('[data-trigger]').forEach(trigger => {
+    trigger.addEventListener('click', e => {
+        e.preventDefault();
+        const triggerType = trigger.dataset.trigger;
+
+        if (triggerType === 'relatorio-mov') {
+            openRelatorioMovimentacoesModal();
+        } else if (triggerType === 'relatorio-man') {
+            openRelatorioManutencaoModal();
+        } else if (triggerType === 'relatorio-est') {
+            openRelatorioEstoqueModal();
+        } else if (triggerType === 'relatorio-saida-combustivel') {
+            openRelatorioSaidaCombustivelModal();
         }
 
-    const relatorioManTrigger = document.getElementById('relatorio-man-trigger');
-    if (relatorioManTrigger) {
-        relatorioManTrigger.addEventListener('click', (e) => {
-            e.preventDefault();
-            openRelatorioManutencaoModal();
-        });
-    }
-
-    // --- Event Listener para abrir o Modal de Relatório de Estoque ---
-    const relatorioEstTrigger = document.getElementById('relatorio-est-trigger');
-    if (relatorioEstTrigger) {
-        relatorioEstTrigger.addEventListener('click', (e) => {
-            e.preventDefault();
-            openRelatorioEstoqueModal();
-        });
-    }
-
-// --- Event Listener para abrir o Modal de Saída de Combustível ---
-    const relatorioSaidaCombustivelTrigger = document.getElementById('relatorio-saida-combustivel-trigger');
-    if (relatorioSaidaCombustivelTrigger) {
-        relatorioSaidaCombustivelTrigger.addEventListener('click', (e) => {
-            e.preventDefault();
-            openRelatorioSaidaCombustivelModal();
-        });
-    }
+        // Adicional: Fecha o menu mobile se estiver aberto
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+            mobileMenu.classList.add('hidden');
+        }
+    });
+});
 
 
 
@@ -238,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Preenche os cards de estatísticas
             document.getElementById('total-produtos').textContent = stats.total_produtos;
             const valor = Number(stats.valor_total_estoque) || 0;
-            document.getElementById('valor-estoque').textContent = `R$ ${valor.toFixed(2)}`;
+            document.getElementById('valor-estoque').textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             const combustivel = Number(stats.total_combustivel) || 0;
             document.getElementById('total-combustivel').textContent = `${combustivel.toFixed(2)} L`; // Exibe com "L" de litros
             
@@ -300,160 +290,235 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
     const renderMovimentacoes = async () => {
-        const section = document.getElementById('movimentacoes');
-       const [produtosResponse, setoresResponse, funcionariosResponse, veiculosResponse] = await Promise.all([
-            api.get('produtos'), 
-            api.get('setores'),
-            api.get('funcionarios'),
-            api.get('veiculos')
-        ]);
-        
-        // E extraímos a lista de dados da propriedade 'data'
-        const produtos = produtosResponse.data;
-        const setores = setoresResponse.data;
-        const funcionarios = funcionariosResponse.data;
-        const veiculos = veiculosResponse.data;
-        // --- FIM DA MODIFICAÇÃO ---
-        
-        const produtosData = {};
-        produtos.forEach(p => { produtosData[p.id] = p; });
+    const section = document.getElementById('movimentacoes');
+    
+    // 1. Busca todos os dados necessários em paralelo
+    const [produtosResponse, setoresResponse, funcionariosResponse, veiculosResponse] = await Promise.all([
+        api.get('produtos?per_page=9999'),
+        api.get('setores'),
+        api.get('funcionarios'),
+        api.get('veiculos')
+    ]);
+    
+    const produtos = produtosResponse.data;
+    const setores = setoresResponse.data;
+    const funcionarios = funcionariosResponse.data;
+    const veiculos = veiculosResponse.data;
+    
+    // Mapeia os produtos por ID para acesso rápido
+    const produtosData = {};
+    produtos.forEach(p => { produtosData[p.id] = p; });
 
-        const produtosOptions = produtos.map(p => `<option value="${p.id}">${p.nome} (Est: ${p.estoque})</option>`).join('');
-        const setoresOptions = setores.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
-        const funcionariosOptions = funcionarios.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
-        const veiculosOptions = veiculos.map(v => `<option value="${v.id}">${v.nome}</option>`).join(''); // <-- Criar options para veículos
+    // Prepara as <options> para os selects
+    const setoresOptions = setores.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+    const funcionariosOptions = funcionarios.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+    const veiculosOptions = veiculos.map(v => `<option value="${v.id}">${v.nome}</option>`).join('');
 
-        section.innerHTML = `
-            <h2 class="text-3xl font-bold text-gray-800 mb-6">Registar Movimentação</h2>
-            <div class="bg-white p-8 rounded-lg shadow-md mb-8">
-                <form id="movimentacao-form">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div><label class="block font-medium">Produto</label><select name="produto_id" id="mov-produto-select" class="w-full p-2 border rounded-md" required>${produtosOptions}</select></div>
-                        <div><label class="block font-medium">Tipo</label><select name="tipo" id="mov-tipo-select" class="w-full p-2 border rounded-md" required><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
-                        <div><label class="block font-medium">Quantidade</label><input type="number" name="quantidade" class="w-full p-2 border rounded-md" required min="1"></div>
-                        <div class="lg:col-span-3"><label class="block font-medium">Setor</label><select name="setor_id" class="w-full p-2 border rounded-md" required>${setoresOptions}</select></div>
-                    </div>
+    // 2. Define o novo HTML da seção com o campo de busca e o container de resultados
+    section.innerHTML = `
+        <h2 class="text-3xl font-bold text-gray-800 mb-6">Registar Movimentação</h2>
+        <div class="bg-white p-8 rounded-lg shadow-md mb-8">
+            <form id="movimentacao-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     
-                    <div id="lote-validade-fields" class="hidden mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div><label class="block font-medium text-green-600">Número do Lote</label><input type="text" name="lote" class="w-full p-2 border rounded-md" placeholder="Ex: LOTE-A4521"></div>
-                        <div><label class="block font-medium text-green-600">Data de Validade (Opcional)</label><input type="date" name="data_validade" class="w-full p-2 border rounded-md"></div>
+                    <div class="relative">
+                        <label class="block font-medium">Produto</label>
+                        <input type="text" id="mov-produto-search" class="w-full p-2 border rounded-md" placeholder="Digite para buscar um produto..." required autocomplete="off">
+                        <div id="search-results-container" class="absolute z-10 w-full bg-white border rounded-md mt-1 shadow-lg hidden max-h-60 overflow-y-auto"></div>
+                        <input type="hidden" name="produto_id" id="mov-produto-id">
                     </div>
 
-                    <div id="funcionario-field" class="hidden mt-6">
-                        <label class="block font-medium text-blue-600">Funcionário que Recebe o EPI</label>
-                        <select name="funcionario_id" class="w-full p-2 border rounded-md">${funcionariosOptions}</select>
-                    </div>
-                    
-                    <div id="veiculo-field" class="hidden mt-6">
-                        <label class="block font-medium text-purple-600">Veículo para Aplicação da Peça</label>
-                        <select name="veiculo_id" class="w-full p-2 border rounded-md">${veiculosOptions}</select>
-                    </div>
+                    <div><label class="block font-medium">Tipo</label><select name="tipo" id="mov-tipo-select" class="w-full p-2 border rounded-md" required><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
+                    <div><label class="block font-medium">Quantidade</label><input type="number" name="quantidade" class="w-full p-2 border rounded-md" required min="1"></div>
+                    <div class="lg:col-span-3"><label class="block font-medium">Setor</label><select name="setor_id" class="w-full p-2 border rounded-md" required>${setoresOptions}</select></div>
+                </div>
+                
+                <div id="lote-validade-fields" class="hidden mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label class="block font-medium text-green-600">Número do Lote</label><input type="text" name="lote" class="w-full p-2 border rounded-md" placeholder="Ex: LOTE-A4521"></div>
+                    <div><label class="block font-medium text-green-600">Data de Validade (Opcional)</label><input type="date" name="data_validade" class="w-full p-2 border rounded-md"></div>
+                </div>
 
-                    <div class="text-right mt-6 border-t pt-4"><button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Registar</button></div>
-                </form>
-            </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-4">Histórico de Movimentações</h3>
-            <div class="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
-                <table class="w-full text-left text-sm"><thead class="bg-gray-100 text-gray-600 uppercase">
-                     <tr><th class="p-3">Data</th><th class="p-3">Produto</th><th class="p-3">Tipo</th><th class="p-3">Qtd.</th><th class="p-3">Lote</th><th class="p-3">Setor</th><th class="p-3">Destino</th><th class="p-3">Utilizador</th><th class="p-3">Ações</th></tr>
-                </thead><tbody id="movimentacoes-table-body"></tbody></table>
-            </div>`;
+                <div id="funcionario-field" class="hidden mt-6">
+                    <label class="block font-medium text-blue-600">Funcionário que Recebe o EPI</label>
+                    <select name="funcionario_id" class="w-full p-2 border rounded-md">${funcionariosOptions}</select>
+                </div>
+                
+                <div id="veiculo-field" class="hidden mt-6">
+                    <label class="block font-medium text-purple-600">Veículo para Aplicação da Peça</label>
+                    <select name="veiculo_id" class="w-full p-2 border rounded-md">${veiculosOptions}</select>
+                </div>
 
-        const produtoSelect = section.querySelector('#mov-produto-select');
-        const tipoSelect = section.querySelector('#mov-tipo-select');
-        const funcionarioField = section.querySelector('#funcionario-field');
-        const loteValidadeFields = section.querySelector('#lote-validade-fields');
-        const veiculoField = section.querySelector('#veiculo-field');
+                <div class="text-right mt-6 border-t pt-4"><button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Registar</button></div>
+            </form>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Histórico de Movimentações</h3>
+        <div class="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
+            <table class="w-full text-left text-sm"><thead class="bg-gray-100 text-gray-600 uppercase">
+                 <tr><th class="p-3">Data</th><th class="p-3">Produto</th><th class="p-3">Tipo</th><th class="p-3">Qtd.</th><th class="p-3">Lote</th><th class="p-3">Setor</th><th class="p-3">Destino</th><th class="p-3">Utilizador</th><th class="p-3">Ações</th></tr>
+            </thead><tbody id="movimentacoes-table-body"></tbody></table>
+        </div>`;
 
-       // --- FUNÇÃO CORRIGIDA AQUI ---
-        const toggleMovimentacaoFields = () => {
-            const produtoId = produtoSelect.value;
-            const tipo = tipoSelect.value;
-            const produto = produtosData[produtoId];
+    // 3. Lógica do Lookup (adaptada do seu exemplo)
+    const searchInput = section.querySelector('#mov-produto-search');
+    const resultsContainer = section.querySelector('#search-results-container');
+    const produtoIdInput = section.querySelector('#mov-produto-id');
+    let selectedResultIndex = -1;
 
-            // Reseta todos os campos opcionais para o estado inicial (escondido e desativado)
-            funcionarioField.classList.add('hidden');
-            funcionarioField.querySelector('select').removeAttribute('required');
-            funcionarioField.querySelector('select').disabled = true;
-
-            loteValidadeFields.classList.add('hidden');
-            loteValidadeFields.querySelector('input[name="lote"]').removeAttribute('required');
-
-            veiculoField.classList.add('hidden');
-            veiculoField.querySelector('select').removeAttribute('required');
-            veiculoField.querySelector('select').disabled = true;
-
-            // Mostra e ativa os campos conforme a lógica
-            if (tipo === 'entrada') {
-                loteValidadeFields.classList.remove('hidden');
-                loteValidadeFields.querySelector('input[name="lote"]').setAttribute('required', 'required');
-            } else if (tipo === 'saida' && produto) {
-                if (produto.is_epi) {
-                    funcionarioField.classList.remove('hidden');
-                    funcionarioField.querySelector('select').setAttribute('required', 'required');
-                    funcionarioField.querySelector('select').disabled = false;
-                }
-                if (produto.is_peca_veicular) {
-                    veiculoField.classList.remove('hidden');
-                    veiculoField.querySelector('select').setAttribute('required', 'required');
-                    veiculoField.querySelector('select').disabled = false;
-                }
-            }
-        };
-
-        produtoSelect.addEventListener('change', toggleMovimentacaoFields);
-        tipoSelect.addEventListener('change', toggleMovimentacaoFields);
+    // Função para selecionar um produto e fechar a busca
+    function selectProduct(product) {
+        if (!product) return;
+        searchInput.value = `${product.nome} (Est: ${product.estoque})`;
+        produtoIdInput.value = product.id;
+        resultsContainer.classList.add('hidden');
         toggleMovimentacaoFields();
+    }
+    
+    // Mostra e filtra os resultados
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        selectedResultIndex = -1;
+        if (query.length < 2) {
+            resultsContainer.innerHTML = '';
+            resultsContainer.classList.add('hidden');
+            return;
+        }
+
+        const filteredProducts = produtos.filter(p => p.nome.toLowerCase().includes(query));
         
-        section.querySelector('#movimentacao-form').addEventListener('submit', async (e) => {
+        resultsContainer.innerHTML = '';
+        if (filteredProducts.length > 0) {
+            filteredProducts.forEach(p => {
+                const resultItem = document.createElement('a');
+                resultItem.href = '#';
+                resultItem.className = 'block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100';
+                resultItem.textContent = `${p.nome} - Estoque: ${p.estoque}`;
+                resultItem.dataset.productId = p.id;
+                resultsContainer.appendChild(resultItem);
+            });
+            resultsContainer.classList.remove('hidden');
+        } else {
+            resultsContainer.classList.add('hidden');
+        }
+    });
+
+    // Navegação com teclado
+    searchInput.addEventListener('keydown', (e) => {
+        const results = resultsContainer.querySelectorAll('a');
+        if (results.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            try {
-                const result = await api.post('movimentacoes', data);
-                alert(result.message);
-                showSection('movimentacoes');
-            } catch (error) {
-                alert(error.message);
+            selectedResultIndex = (selectedResultIndex + 1) % results.length;
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedResultIndex = (selectedResultIndex - 1 + results.length) % results.length;
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedResultIndex > -1) {
+                results[selectedResultIndex].click();
             }
-        });
+        }
+        
+        results.forEach((item, index) => item.classList.toggle('bg-gray-200', index === selectedResultIndex));
+    });
 
-        const tableBody = section.querySelector('#movimentacoes-table-body');
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8"><div class="loader mx-auto"></div></td></tr>`;
-        try {
-            const movimentacoes = await api.get('movimentacoes');
-            if (movimentacoes.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-gray-500">Nenhuma movimentação registada.</td></tr>`;
-            } else {
-                tableBody.innerHTML = movimentacoes.map(m => {
-                    const destino = m.funcionario_nome 
-                        ? `<span class="text-blue-600">${m.funcionario_nome}</span>` 
-                        : (m.veiculo_nome ? `<span class="text-purple-600">${m.veiculo_nome}</span>` : '');
+    // Seleção com o mouse
+    resultsContainer.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = e.target.closest('a');
+        if (target) {
+            const product = produtos.find(p => p.id == target.dataset.productId);
+            selectProduct(product);
+        }
+    });
 
-                    // Só mostra o botão de correção para o gerente
-                    const corrigirButton = (USER_ROLE === 'gerente')
-                        ? `<button class="text-blue-600 hover:text-blue-800 edit-mov-btn" data-id="${m.id}" title="Corrigir Lançamento"><i class="fas fa-edit"></i></button>`
-                        : '';
+    // Esconde a lista ao clicar fora
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+            resultsContainer.classList.add('hidden');
+        }
+    });
 
-                    return `
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-3">${m.data}</td>
-                            <td class="p-3 font-medium">${m.produto_nome}</td>
-                            <td class="p-3"><span class="px-2 py-1 text-xs rounded-full ${m.tipo === 'entrada' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}">${m.tipo}</span></td>
-                            <td class="p-3">${m.quantidade}</td>
-                            <td class="p-3">${m.lote || ''}</td>
-                            <td class="p-3">${m.setor_nome}</td>
-                            <td class="p-3">${destino}</td>
-                            <td class="p-3 text-gray-500">${m.usuario_nome}</td>
-                            <td class="p-3 text-center">${corrigirButton}</td>
-                        </tr>`
-                }).join('');
+    // 4. Lógica restante da função (sem alterações)
+    const tipoSelect = section.querySelector('#mov-tipo-select');
+    const funcionarioField = section.querySelector('#funcionario-field');
+    const loteValidadeFields = section.querySelector('#lote-validade-fields');
+    const veiculoField = section.querySelector('#veiculo-field');
+
+    const toggleMovimentacaoFields = () => {
+        const produtoId = produtoIdInput.value;
+        const tipo = tipoSelect.value;
+        const produto = produtosData[produtoId];
+
+        funcionarioField.classList.add('hidden');
+        funcionarioField.querySelector('select').removeAttribute('required');
+        loteValidadeFields.classList.add('hidden');
+        loteValidadeFields.querySelector('input[name="lote"]').removeAttribute('required');
+        veiculoField.classList.add('hidden');
+        veiculoField.querySelector('select').removeAttribute('required');
+
+        if (tipo === 'entrada') {
+            loteValidadeFields.classList.remove('hidden');
+            loteValidadeFields.querySelector('input[name="lote"]').setAttribute('required', 'required');
+        } else if (tipo === 'saida' && produto) {
+            if (produto.is_epi) {
+                funcionarioField.classList.remove('hidden');
+                funcionarioField.querySelector('select').setAttribute('required', 'required');
             }
-            
-        } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-red-500">Falha ao carregar dados.</td></tr>`;
+            if (produto.is_peca_veicular) {
+                veiculoField.classList.remove('hidden');
+                veiculoField.querySelector('select').setAttribute('required', 'required');
+            }
         }
     };
+    
+    tipoSelect.addEventListener('change', toggleMovimentacaoFields);
+    
+    section.querySelector('#movimentacao-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        try {
+            const result = await api.post('movimentacoes', data);
+            alert(result.message);
+            showSection('movimentacoes');
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+
+    const tableBody = section.querySelector('#movimentacoes-table-body');
+    tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8"><div class="loader mx-auto"></div></td></tr>`;
+    try {
+        const movimentacoes = await api.get('movimentacoes');
+        if (movimentacoes.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-gray-500">Nenhuma movimentação registada.</td></tr>`;
+        } else {
+            tableBody.innerHTML = movimentacoes.map(m => {
+                const destino = m.funcionario_nome 
+                    ? `<span class="text-blue-600">${m.funcionario_nome}</span>` 
+                    : (m.veiculo_nome ? `<span class="text-purple-600">${m.veiculo_nome}</span>` : '');
+                const corrigirButton = (USER_ROLE === 'gerente')
+                    ? `<button class="text-blue-600 hover:text-blue-800 edit-mov-btn" data-id="${m.id}" title="Corrigir Lançamento"><i class="fas fa-edit"></i></button>`
+                    : '';
+                return `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">${m.data}</td>
+                        <td class="p-3 font-medium">${m.produto_nome}</td>
+                        <td class="p-3"><span class="px-2 py-1 text-xs rounded-full ${m.tipo === 'entrada' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}">${m.tipo}</span></td>
+                        <td class="p-3">${m.quantidade}</td>
+                        <td class="p-3">${m.lote || ''}</td>
+                        <td class="p-3">${m.setor_nome}</td>
+                        <td class="p-3">${destino}</td>
+                        <td class="p-3 text-gray-500">${m.usuario_nome}</td>
+                        <td class="p-3 text-center">${corrigirButton}</td>
+                    </tr>`;
+            }).join('');
+        }
+    } catch (error) {
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-red-500">Falha ao carregar dados.</td></tr>`;
+    }
+};
     const openMovimentacaoModal = async (id) => {
         let movimentacao;
         try {
@@ -872,134 +937,162 @@ document.addEventListener('DOMContentLoaded', () => {
             modalForm.querySelector('select[name="tipo_veiculo_id"]').value = veiculo.tipo_veiculo_id;
         }
     };
-   // Em app/static/js/app.js
 
-    const renderControleCombustivel = async () => {
-        const section = document.getElementById('controle_combustivel');
-        section.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div></div>`;
+// SUBSTITUA a sua função renderControleCombustivel por esta versão completa
+const renderControleCombustivel = async () => {
+    const section = document.getElementById('controle_combustivel');
+    section.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div></div>`;
 
-        try {
-            const [dados, tiposCombustivelResponse, veiculosResponse, funcoesResponse, fornecedoresResponse] = await Promise.all([
-                api.get('combustivel/dados'),
-                api.get('tipos_combustivel'),
-                api.get('veiculos'),
-                api.get('funcoes'),
-                api.get('fornecedores') // Busca a lista de fornecedores
-            ]);
+    try {
+        const [dados, entradas, tiposCombustivelResponse, veiculosResponse, funcoesResponse, fornecedoresResponse] = await Promise.all([
+            api.get('combustivel/dados'),
+            api.get('combustivel/entradas'),
+            api.get('tipos_combustivel'),
+            api.get('veiculos'),
+            api.get('funcoes'),
+            api.get('fornecedores')
+        ]);
 
-            const tiposCombustivel = tiposCombustivelResponse.data;
-            const veiculos = veiculosResponse.data;
-            const funcoes = funcoesResponse.data;
-            const fornecedores = fornecedoresResponse.data;
+        const tiposCombustivel = tiposCombustivelResponse.data;
+        const veiculos = veiculosResponse.data;
+        const funcoes = funcoesResponse.data;
+        const fornecedores = fornecedoresResponse.data;
+        const funcionarios = dados.funcionarios;
+        const implementos = dados.implementos;
 
-            const tiposCombustivelOptions = tiposCombustivel.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
-            const veiculosOptions = veiculos.map(v => `<option value="${v.id}" data-hodometro="${v.hodometro_horimetro || 0}">${v.nome}</option>`).join('');
-            const funcoesOptions = funcoes.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
-            // --- Adiciona a opção "Nenhum" para o fornecedor ser opcional ---
-            const fornecedoresOptions = `<option value="">Nenhum</option>` + fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
-            
-            const stockCards = dados.estoque.map(e => `
-                <div class="bg-white p-4 rounded-lg shadow-sm border">
-                    <h4 class="font-semibold text-gray-700">${e.tipo_combustivel_nome}</h4>
-                    <p class="text-2xl font-bold text-gray-900">${e.quantidade.toFixed(2)} L</p>
-                </div>
-            `).join('');
+        const tiposCombustivelOptions = tiposCombustivel.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
+        const veiculosOptions = veiculos.map(v => `<option value="${v.id}" data-hodometro="${v.hodometro_horimetro || 0}">${v.nome}</option>`).join('');
+        const funcoesOptions = funcoes.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+        const fornecedoresOptions = `<option value="">Nenhum</option>` + fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+        const funcionariosOptions = funcionarios.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+        const implementosOptions = '<option value="">Nenhum</option>' + implementos.map(i => `<option value="${i.id}">${i.nome}</option>`).join('');
+    
+        const stockCards = dados.estoque.map(e => `
+            <div class="bg-white p-4 rounded-lg shadow-sm border">
+                <h4 class="font-semibold text-gray-700">${e.tipo_combustivel_nome}</h4>
+                <p class="text-2xl font-bold text-gray-900">${e.quantidade.toFixed(2)} L</p>
+            </div>
+        `).join('');
 
-            section.innerHTML = `
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Controlo de Combustível</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-1 space-y-6">
-                        <div class="bg-white p-6 rounded-xl shadow-md">
-                            <h3 class="text-lg font-bold mb-4">Stock Atual</h3>
-                            <div class="grid grid-cols-2 gap-4">${stockCards || '<p class="col-span-2 text-sm text-gray-500">Nenhum stock registado.</p>'}</div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-md">
-                            <h3 class="text-lg font-bold mb-4">Registar Entrada (Compra)</h3>
-                            <form id="form-entrada-combustivel" class="space-y-4">
+        section.innerHTML = `
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                 <h2 class="text-3xl font-bold text-gray-800">Controle de Combustível</h2>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h3 class="text-lg font-bold mb-4">Estoque Atual</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">${stockCards || '<p>Nenhum estoque.</p>'}</div>
+            </div>
+
+            <!-- =====> NOVO ESTILO DE ABAS APLICADO AQUI <===== -->
+            <div class="mb-0">
+                <ul class="flex flex-wrap text-sm font-medium text-center text-gray-500 border-b border-gray-200" id="combustivel-tabs">
+                    <li class="mr-2">
+                        <button data-tab="saidas" class="tab-btn active-tab inline-flex items-center p-4 text-blue-600 bg-gray-100 rounded-t-lg active">
+                            <i class="fas fa-gas-pump mr-2"></i>Registrar Saída (Abastecimento)
+                        </button>
+                    </li>
+                    <li class="mr-2">
+                        <button data-tab="entradas" class="tab-btn inline-block p-4 rounded-t-lg hover:text-gray-600 hover:bg-gray-50">
+                            <i class="fas fa-dolly mr-2"></i>Registrar Entrada (Compra)
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <!-- ============================================== -->
+
+            <div>
+                <div id="tab-content-saidas" class="tab-content space-y-6">
+                    <div class="bg-white p-6 rounded-b-xl rounded-tr-xl shadow-md border-t-0 border">
+                        <h3 class="text-lg font-bold mb-4">Formulário de Saída</h3>
+                        <form id="form-saida-combustivel" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="block text-sm font-medium">Data</label><input type="date" name="data" class="w-full p-2 border rounded-md" value="${new Date().toISOString().slice(0, 10)}" required></div>
+                                <div><label class="block text-sm font-medium">Funcionário</label><select name="funcionario_id" class="w-full p-2 border rounded-md" required>${funcionariosOptions}</select></div>
+                                <div><label class="block text-sm font-medium">Veículo</label><select name="veiculo_id" id="saida-veiculo-select" class="w-full p-2 border rounded-md" required>${veiculosOptions}</select></div>
+                                <div><label class="block text-sm font-medium">Implemento</label><select name="implemento_id" class="w-full p-2 border rounded-md">${implementosOptions}</select></div>
                                 <div><label class="block text-sm font-medium">Tipo de Combustível</label><select name="tipo_combustivel_id" class="w-full p-2 border rounded-md" required>${tiposCombustivelOptions}</select></div>
-                                
-                                <div><label class="block text-sm font-medium">Fornecedor (Opcional)</label><select name="fornecedor_id" class="w-full p-2 border rounded-md">${fornecedoresOptions}</select></div>
-                               
-                                <div id="add-nota-combustivel-container" class="hidden">
-                                    <button type="button" id="add-nota-combustivel-btn" class="text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600">Adicionar Nota Fiscal para este Fornecedor</button>
-                                </div>
-
-                                <div><label class="block text-sm font-medium">Quantidade (Litros)</label><input type="number" name="quantidade" step="0.01" class="w-full p-2 border rounded-md" required></div>
-                                <div><label class="block text-sm font-medium">Preço por Litro (R$)</label><input type="number" name="preco_litro" step="0.01" class="w-full p-2 border rounded-md" required></div>
-                                <div class="text-right"><button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Registar Entrada</button></div>
-                            </form>
-                        </div>
-                    </div>
-                    <div class="lg:col-span-2 space-y-6">
-                        <div class="bg-white p-6 rounded-xl shadow-md">
-                            <h3 class="text-lg font-bold mb-4">Registar Saída (Abastecimento)</h3>
-                            <form id="form-saida-combustivel" class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div><label class="block text-sm font-medium">Veículo</label><select name="veiculo_id" id="saida-veiculo-select" class="w-full p-2 border rounded-md" required>${veiculosOptions}</select></div>
-                                    <div><label class="block text-sm font-medium">Tipo de Combustível</label><select name="tipo_combustivel_id" class="w-full p-2 border rounded-md" required>${tiposCombustivelOptions}</select></div>
-                                    <div><label class="block text-sm font-medium">Função / Tarefa</label><select name="funcao_id" class="w-full p-2 border rounded-md" required>${funcoesOptions}</select></div>
-                                    <div><label class="block text-sm font-medium">Horas Trabalhadas</label><input type="number" name="horas_trabalhadas" step="0.1" class="w-full p-2 border rounded-md" required></div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium">Hodómetro / Horímetro Atual</label>
-                                        <input type="number" name="hodometro_horimetro" id="hodometro-input" step="0.1" class="w-full p-2 border rounded-md" required placeholder="Último registo: 0">
-                                    </div>
-                                </div>
-                                <div><label class="block text-sm font-medium">Quantidade Abastecida (Litros)</label><input type="number" name="quantidade_abastecida" step="0.01" class="w-full p-2 border rounded-md" required></div>
-                                <div class="text-right"><button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg">Registar Saída</button></div>
-                            </form>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-md">
-                            <h3 class="text-lg font-bold mb-4">Histórico Recente de Saídas</h3>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left text-sm">
-                                    <thead class="bg-gray-50">
-                                        <tr><th class="p-2">Data</th><th class="p-2">Veículo</th><th class="p-2">Função</th><th class="p-2">Qtd (L)</th><th class="p-2">Horas Trab.</th><th class="p-2">Hod./Horím.</th><th class="p-2">Utilizador</th></tr>
-                                    </thead>
-                                    <tbody id="historico-saidas-combustivel"></tbody>
-                                </table>
+                                <div><label class="block text-sm font-medium">Função / Tarefa</label><select name="funcao_id" class="w-full p-2 border rounded-md" required>${funcoesOptions}</select></div>
+                                <div><label class="block text-sm font-medium">Horímetro Inicial</label><input type="number" id="horimetro_inicial" name="horimetro_inicial" step="0.1" class="w-full p-2 border rounded-md" required></div>
+                                <div><label class="block text-sm font-medium">Horímetro Final</label><input type="number" id="horimetro_final" name="horimetro_final" step="0.1" class="w-full p-2 border rounded-md" required></div>
+                                <div><label class="block text-sm font-medium">Total Horas/Km</label><input type="text" id="total_horas_km" class="w-full p-2 border rounded-md bg-gray-100" readonly></div>
                             </div>
-                        </div>
+                            <div><label class="block text-sm font-medium">Quantidade Abastecida (L)</label><input type="number" name="quantidade_abastecida" step="0.01" class="w-full p-2 border rounded-md" required></div>
+                            <div><label class="block text-sm font-medium">Descrição (Opcional)</label><textarea name="descricao" rows="2" class="w-full p-2 border rounded-md"></textarea></div>
+                            <div class="text-right"><button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg">Registrar Saída</button></div>
+                        </form>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-bold mb-4">Histórico Recente de Saídas</h3>
+                        <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50"><tr><th class="p-2">Data</th><th class="p-2">Veículo</th><th class="p-2">Função</th><th class="p-2">Qtd (L)</th><th class="p-2">Utilizador</th><th class="p-2">Ações</th></tr></thead><tbody id="historico-saidas-combustivel"></tbody></table></div>
                     </div>
                 </div>
-            `;
+                <div id="tab-content-entradas" class="tab-content space-y-6 hidden">
+                     <div class="bg-white p-6 rounded-b-xl rounded-tr-xl shadow-md border-t-0 border">
+                        <h3 class="text-lg font-bold mb-4">Formulário de Entrada</h3>
+                        <form id="form-entrada-combustivel" class="space-y-4">
+                            <div><label>Tipo de Combustível</label><select name="tipo_combustivel_id" class="w-full p-2 border rounded-md" required>${tiposCombustivelOptions}</select></div>
+                            <div><label>Fornecedor (Opcional)</label><select name="fornecedor_id" id="entrada-fornecedor-select" class="w-full p-2 border rounded-md">${fornecedoresOptions}</select></div>
+                            <div id="add-nota-combustivel-container" class="hidden">
+                                <button type="button" id="add-nota-combustivel-btn" class="text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 w-full">Adicionar Nota Fiscal para este Fornecedor</button>
+                            </div>
+                            <div><label>Quantidade (Litros)</label><input type="number" name="quantidade" step="0.01" class="w-full p-2 border rounded-md" required></div>
+                            <div><label>Preço por Litro (R$)</label><input type="number" name="preco_litro" step="0.01" class="w-full p-2 border rounded-md" required></div>
+                            <div class="text-right"><button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Registrar Entrada</button></div>
+                        </form>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-bold mb-4">Histórico Recente de Entradas</h3>
+                        <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50"><tr><th class="p-2">Data</th><th class="p-2">Combustível</th><th class="p-2">Qtd</th><th class="p-2">Preço/L</th><th class="p-2">Ações</th></tr></thead><tbody id="historico-entradas-combustivel"></tbody></table></div>
+                    </div>
+                </div>
+            </div>
+        `;
 
-                // --- ADICIONE ESTE BLOCO DE CÓDIGO ANTES DA LÓGICA DO HODÔMETRO ---
-            const fornecedorSelectComb = section.querySelector('select[name="fornecedor_id"]');
-            const addNotaContainerComb = section.querySelector('#add-nota-combustivel-container');
-            const addNotaBtnComb = section.querySelector('#add-nota-combustivel-btn');
+        // LÓGICA DE EVENTOS (COM NOVA LÓGICA PARA O ESTILO DAS ABAS)
 
-            const toggleNotaButtonComb = () => {
-                const fornecedorId = fornecedorSelectComb.value;
-                addNotaContainerComb.classList.toggle('hidden', !fornecedorId);
-            };
+        const tabsContainer = section.querySelector('#combustivel-tabs');
+        if (tabsContainer) {
+            tabsContainer.addEventListener('click', (e) => {
+                const clickedButton = e.target.closest('button');
+                if (!clickedButton) return;
+                
+                const tab = clickedButton.dataset.tab;
+                
+                // =====> NOVA LÓGICA DE ESTILO <=====
+                section.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('bg-gray-100', 'text-blue-600', 'active-tab');
+                    btn.classList.add('hover:text-gray-600', 'hover:bg-gray-50');
+                });
+                clickedButton.classList.add('bg-gray-100', 'text-blue-600', 'active-tab');
+                clickedButton.classList.remove('hover:text-gray-600', 'hover:bg-gray-50');
+                // ==================================
 
-            fornecedorSelectComb.addEventListener('change', toggleNotaButtonComb);
+                section.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                const activeTab = section.querySelector(`#tab-content-${tab}`);
+                if (activeTab) activeTab.classList.remove('hidden');
+            });
+        }
+
+        // Lógica para o botão da nota fiscal
+        const fornecedorSelectComb = section.querySelector('#entrada-fornecedor-select');
+        const addNotaContainerComb = section.querySelector('#add-nota-combustivel-container');
+        if (fornecedorSelectComb && addNotaContainerComb) {
+            fornecedorSelectComb.addEventListener('change', () => {
+                addNotaContainerComb.classList.toggle('hidden', !fornecedorSelectComb.value);
+            });
+        }
+        const addNotaBtnComb = section.querySelector('#add-nota-combustivel-btn');
+        if (addNotaBtnComb) {
             addNotaBtnComb.addEventListener('click', () => {
-                const fornecedorId = fornecedorSelectComb.value;
-                if (fornecedorId) {
-                    openNotaFiscalFormModal(fornecedorId);
+                if (fornecedorSelectComb.value) {
+                    openNotaFiscalFormModal(fornecedorSelectComb.value);
                 }
             });
-            const veiculoSelect = section.querySelector('#saida-veiculo-select');
-            const hodometroInput = section.querySelector('#hodometro-input');
-            
-
-
-
-            
-            const updateHodometroPlaceholder = () => {
-                if (veiculoSelect.options.length > 0) {
-                    const selectedOption = veiculoSelect.options[veiculoSelect.selectedIndex];
-                    const ultimoRegisto = selectedOption.dataset.hodometro;
-                    hodometroInput.placeholder = "Último registo: " + ultimoRegisto;
-                    hodometroInput.min = ultimoRegisto;
-                }
-            };
-            veiculoSelect.addEventListener('change', updateHodometroPlaceholder);
-            updateHodometroPlaceholder();
-
-            // Lógica dos formulários
-            const formEntrada = section.querySelector('#form-entrada-combustivel');
+        }
+        
+        // Lógica para o formulário de ENTRADA
+        const formEntrada = section.querySelector('#form-entrada-combustivel');
+        if (formEntrada) {
             formEntrada.addEventListener('submit', async e => {
                 e.preventDefault();
                 const data = Object.fromEntries(new FormData(e.target).entries());
@@ -1007,10 +1100,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const result = await api.post('combustivel/entradas', data);
                     alert(result.message);
                     showSection('controle_combustivel');
-                } catch (error) { alert(error.message); }
+                } catch (error) {
+                    alert(error.message);
+                }
             });
+        }
 
-            const formSaida = section.querySelector('#form-saida-combustivel');
+        // Lógica para o formulário de SAÍDA
+        const formSaida = section.querySelector('#form-saida-combustivel');
+        if (formSaida) {
             formSaida.addEventListener('submit', async e => {
                 e.preventDefault();
                 const data = Object.fromEntries(new FormData(e.target).entries());
@@ -1018,30 +1116,212 @@ document.addEventListener('DOMContentLoaded', () => {
                     const result = await api.post('combustivel/saidas', data);
                     alert(result.message);
                     showSection('controle_combustivel');
-                } catch (error) { alert(error.message); }
+                } catch (error) {
+                    alert(error.message);
+                }
             });
-
-            // Preenche a tabela de histórico
-            const tableBody = section.querySelector('#historico-saidas-combustivel');
-            if (dados.historico.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">Nenhuma saída registada.</td></tr>';
-            } else {
-                tableBody.innerHTML = dados.historico.map(s => `
-                    <tr class="border-b">
-                        <td class="p-2">${s.data}</td>
-                        <td class="p-2">${s.veiculo_nome}</td>
-                        <td class="p-2">${s.funcao_nome}</td>
-                        <td class="p-2">${s.quantidade}</td>
-                        <td class="p-2">${s.horas}</td>
-                        <td class="p-2">${s.hodometro_horimetro || ''}</td>
-                        <td class="p-2">${s.usuario_nome}</td>
-                    </tr>
-                `).join('');
-            }
-        } catch (error) {
-            section.innerHTML = '<p class="text-center p-8 text-red-500">Falha ao carregar dados.</p>';
         }
-    };
+
+        // Lógica do cálculo de horímetro
+        const horimetroInicialInput = section.querySelector('#horimetro_inicial');
+        const horimetroFinalInput = section.querySelector('#horimetro_final');
+        const totalHorasKmInput = section.querySelector('#total_horas_km');
+        const veiculoSelectSaida = section.querySelector('#saida-veiculo-select');
+
+        const calcularTotalHorimetro = () => {
+            const inicio = parseFloat(horimetroInicialInput.value);
+            const fim = parseFloat(horimetroFinalInput.value);
+            if (!isNaN(inicio) && !isNaN(fim) && fim >= inicio) {
+                totalHorasKmInput.value = (fim - inicio).toFixed(2);
+            } else {
+                totalHorasKmInput.value = '';
+            }
+        };
+        if (horimetroInicialInput && horimetroFinalInput) {
+            horimetroInicialInput.addEventListener('input', calcularTotalHorimetro);
+            horimetroFinalInput.addEventListener('input', calcularTotalHorimetro);
+        }
+
+        const preencherHorimetroInicial = () => {
+            if (veiculoSelectSaida.options.length > 0) {
+                const selectedOption = veiculoSelectSaida.options[veiculoSelectSaida.selectedIndex];
+                const ultimoRegisto = selectedOption.dataset.hodometro || 0;
+                horimetroInicialInput.value = ultimoRegisto;
+            }
+        };
+        if (veiculoSelectSaida) {
+            veiculoSelectSaida.addEventListener('change', preencherHorimetroInicial);
+            preencherHorimetroInicial();
+        }
+
+        // =====> CORREÇÃO PRINCIPAL AQUI <=====
+        // Preenchimento das tabelas
+        const tableBodyEntradas = section.querySelector('#historico-entradas-combustivel');
+        if (tableBodyEntradas) {
+            tableBodyEntradas.innerHTML = entradas.map(e => `
+                <tr class="border-b">
+                    <td class="p-2">${e.data}</td>
+                    <td class="p-2">${e.tipo_combustivel}</td>
+                    <td class="p-2">${e.quantidade.toFixed(2)} L</td>
+                    <td class="p-2">R$ ${e.preco_litro.toFixed(2)}</td>
+                    <td class="p-2">
+                        <button data-action="edit-combustivel-entrada" data-id="${e.id}" class="text-blue-600 hover:text-blue-800" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button data-action="delete-combustivel-entrada" data-id="${e.id}" class="text-red-600 hover:text-red-800 ml-2" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('') || `<tr><td colspan="5" class="p-4 text-center text-gray-500">Nenhuma entrada registrada.</td></tr>`;
+        }
+        
+        const tableBodySaidas = section.querySelector('#historico-saidas-combustivel');
+        if (tableBodySaidas) {
+            tableBodySaidas.innerHTML = dados.historico.map(s => `
+                <tr class="border-b">
+                    <td class="p-2">${s.data}</td>
+                    <td class="p-2">${s.veiculo_nome}</td>
+                    <td class="p-2">${s.funcao_nome}</td>
+                    <td class="p-2">${s.quantidade.toFixed(2)}</td>
+                    <td class="p-2">${s.funcionario_nome}</td>
+                    <td class="p-2">
+                        <button data-action="edit-combustivel-saida" data-id="${s.id}" class="text-blue-600 hover:text-blue-800" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button data-action="delete-combustivel-saida" data-id="${s.id}" class="text-red-600 hover:text-red-800 ml-2" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('') || `<tr><td colspan="6" class="p-4 text-center text-gray-500">Nenhuma saída registrada.</td></tr>`;
+        }
+
+    } catch (error) {
+        section.innerHTML = '<p class="text-center text-red-500">Falha ao carregar dados do controle de combustível.</p>';
+        console.error("Erro em renderControleCombustivel:", error);
+    }
+};
+
+// Função para abrir o modal de EDIÇÃO de SAÍDA de combustível
+async function openEditCombustivelSaidaModal(id) {
+    try {
+        const [saida, dados, tiposCombustivelResponse, veiculosResponse, funcoesResponse] = await Promise.all([
+            api.get('combustivel/saidas', id),
+            api.get('combustivel/dados'),
+            api.get('tipos_combustivel'),
+            api.get('veiculos'),
+            api.get('funcoes')
+        ]);
+
+        const funcionariosOptions = dados.funcionarios.map(f => `<option value="${f.id}" ${f.id === saida.funcionario_id ? 'selected' : ''}>${f.nome}</option>`).join('');
+        const veiculosOptions = veiculosResponse.data.map(v => `<option value="${v.id}" ${v.id === saida.veiculo_id ? 'selected' : ''}>${v.nome}</option>`).join('');
+        const implementosOptions = '<option value="">Nenhum</option>' + dados.implementos.map(i => `<option value="${i.id}" ${i.id === saida.implemento_id ? 'selected' : ''}>${i.nome}</option>`).join('');
+        const tiposOptions = tiposCombustivelResponse.data.map(t => `<option value="${t.id}" ${t.id === saida.tipo_combustivel_id ? 'selected' : ''}>${t.nome}</option>`).join('');
+        const funcoesOptions = funcoesResponse.data.map(f => `<option value="${f.id}" ${f.id === saida.funcao_id ? 'selected' : ''}>${f.nome}</option>`).join('');
+
+        // =====> 1. HTML DO FORMULÁRIO CORRIGIDO <=====
+        const formHtml = `
+            <div class="space-y-4">
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium">Data</label><input type="date" name="data" class="w-full p-2 border rounded-md" value="${saida.data}" required></div>
+                    <div><label class="block text-sm font-medium">Funcionário</label><select name="funcionario_id" class="w-full p-2 border rounded-md" required>${funcionariosOptions}</select></div>
+                    <div><label class="block text-sm font-medium">Veículo</label><select name="veiculo_id" class="w-full p-2 border rounded-md" required>${veiculosOptions}</select></div>
+                    <div><label class="block text-sm font-medium">Implemento</label><select name="implemento_id" class="w-full p-2 border rounded-md">${implementosOptions}</select></div>
+                    <div><label class="block text-sm font-medium">Tipo de Combustível</label><select name="tipo_combustivel_id" class="w-full p-2 border rounded-md" required>${tiposOptions}</select></div>
+                    <div><label class="block text-sm font-medium">Função / Tarefa</label><select name="funcao_id" class="w-full p-2 border rounded-md" required>${funcoesOptions}</select></div>
+                    
+                    <div><label class="block text-sm font-medium">Horímetro Inicial</label><input type="number" id="edit_horimetro_inicial" name="horimetro_inicial" step="0.1" class="w-full p-2 border rounded-md" value="${saida.horimetro_inicial || ''}" required></div>
+                    <div><label class="block text-sm font-medium">Horímetro Final</label><input type="number" id="edit_horimetro_final" name="horimetro_final" step="0.1" class="w-full p-2 border rounded-md" value="${saida.horimetro_final || ''}" required></div>
+                    
+                    <div><label class="block text-sm font-medium">Total Horas/Km</label><input type="text" id="edit_total_horas_km" class="w-full p-2 border rounded-md bg-gray-100" readonly></div>
+
+                    <div><label class="block text-sm font-medium">Quantidade Abastecida (L)</label><input type="number" name="quantidade_abastecida" step="0.01" class="w-full p-2 border rounded-md" value="${saida.quantidade_abastecida}" required></div>
+                </div>
+                <div><label class="block text-sm font-medium">Descrição (Opcional)</label><textarea name="descricao" rows="2" class="w-full p-2 border rounded-md">${saida.descricao || ''}</textarea></div>
+            </div>
+            <div class="text-right mt-6 border-t pt-4"><button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Salvar Alterações</button></div>`;
+        
+        openModal('Editar Saída de Combustível', formHtml, 'combustivel/saidas'); // ANTES: 'combustivel-saidas'
+    modalForm.dataset.editId = id;
+
+        // =====> 2. LÓGICA DE CÁLCULO ADICIONADA AO MODAL <=====
+        const hInicialModal = document.getElementById('edit_horimetro_inicial');
+        const hFinalModal = document.getElementById('edit_horimetro_final');
+        const hTotalModal = document.getElementById('edit_total_horas_km');
+
+        const calcularTotalModal = () => {
+            const inicio = parseFloat(hInicialModal.value);
+            const fim = parseFloat(hFinalModal.value);
+            if (!isNaN(inicio) && !isNaN(fim) && fim >= inicio) {
+                hTotalModal.value = (fim - inicio).toFixed(2);
+            } else {
+                hTotalModal.value = '';
+            }
+        };
+
+        hInicialModal.addEventListener('input', calcularTotalModal);
+        hFinalModal.addEventListener('input', calcularTotalModal);
+        
+        // Calcula o valor inicial assim que o modal abre
+        calcularTotalModal();
+
+    } catch (error) {
+      alert('Não foi possível carregar os dados para edição.');
+      console.error('Erro ao abrir modal de edição de saída:', error);
+    }
+}
+
+// Função para EXCLUIR uma SAÍDA de combustível
+async function deleteCombustivelSaida(id) {
+    if (confirm('Tem certeza que deseja excluir esta saída? O valor será devolvido ao estoque.')) {
+        try {
+            const result = await api.delete('combustivel/saidas', id);
+            alert(result.message);
+            showSection('controle_combustivel');
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+}
+
+// Função para abrir o modal de EDIÇÃO de entrada de combustível
+async function openEditCombustivelEntradaModal(id) {
+    try {
+        const [entrada, tiposCombustivelResponse, fornecedoresResponse] = await Promise.all([
+            api.get('combustivel/entradas', id),
+            api.get('tipos_combustivel'),
+            api.get('fornecedores')
+        ]);
+
+        const tiposOptions = tiposCombustivelResponse.data.map(t => `<option value="${t.id}" ${t.id === entrada.tipo_combustivel_id ? 'selected' : ''}>${t.nome}</option>`).join('');
+        const fornecedoresOptions = '<option value="">Nenhum</option>' + fornecedoresResponse.data.map(f => `<option value="${f.id}" ${f.id === entrada.fornecedor_id ? 'selected' : ''}>${f.nome}</option>`).join('');
+
+        const formHtml = `
+            <div class="space-y-4">
+                <div><label class="block font-medium">Tipo de Combustível</label><select name="tipo_combustivel_id" class="w-full p-2 border rounded-md" required>${tiposOptions}</select></div>
+                <div><label class="block font-medium">Fornecedor (Opcional)</label><select name="fornecedor_id" class="w-full p-2 border rounded-md">${fornecedoresOptions}</select></div>
+                <div><label class="block font-medium">Quantidade (Litros)</label><input type="number" name="quantidade" step="0.01" class="w-full p-2 border rounded-md" value="${entrada.quantidade}" required></div>
+                <div><label class="block font-medium">Preço por Litro (R$)</label><input type="number" name="preco_litro" step="0.01" class="w-full p-2 border rounded-md" value="${entrada.preco_litro}" required></div>
+                <div><label class="block font-medium">Observação</label><textarea name="observacao" rows="2" class="w-full p-2 border rounded-md">${entrada.observacao || ''}</textarea></div>
+            </div>
+            <div class="text-right mt-6 border-t pt-4"><button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Salvar Alterações</button></div>`;
+
+        openModal('Editar Entrada de Combustível', formHtml, 'combustivel-entradas');
+        modalForm.dataset.editId = id;
+
+    } catch (error) {
+        alert('Não foi possível carregar os dados para edição.');
+        console.error('Erro ao abrir modal de edição:', error);
+    }
+}
+
+// Função para EXCLUIR uma entrada de combustível
+    async function deleteCombustivelEntrada(id) {
+        if (confirm('Tem certeza que deseja excluir esta entrada? Esta ação irá corrigir o estoque.')) {
+            try {
+                const result = await api.delete('combustivel/entradas', id);
+                alert(result.message);
+                showSection('controle_combustivel'); // Recarrega a seção
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+    }
+
+
     const openManutencaoModal = async (id = null) => {
         try {
             const [veiculosResponse, pecasResponse] = await Promise.all([
@@ -1280,139 +1560,263 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     
-    const openFornecedorModal = async (id = null) => {
-        let fornecedor = {};
-        let title = 'Adicionar Novo Fornecedor';
-        if (id) {
-            try {
-                fornecedor = await api.get('fornecedores', id);
-                title = 'Editar Fornecedor';
-            } catch (error) { alert('Não foi possível carregar os dados do fornecedor.'); return; }
+    // Em app/static/js/app.js
+
+const openFornecedorModal = async (id = null) => {
+    let fornecedor = {};
+    let title = 'Adicionar Novo Fornecedor';
+    if (id) {
+        try {
+            fornecedor = await api.get('fornecedores', id);
+            title = 'Editar Fornecedor';
+        } catch (error) { alert('Não foi possível carregar os dados do fornecedor.'); return; }
+    }
+
+    const formHtml = `
+        <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+            <h4 class="font-bold text-blue-800">Preenchimento Automático por XML</h4>
+            <p class="text-sm text-gray-600 mt-1">Selecione o ficheiro XML da NF-e para preencher os dados do fornecedor automaticamente.</p>
+            <div class="mt-2">
+                <input type="file" id="nfe-xml-input" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" accept=".xml">
+            </div>
+            <div id="nfe-message" class="text-sm mt-2"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div class="lg:col-span-2"><label class="block font-medium">Nome</label><input type="text" name="nome" class="w-full p-2 border rounded-md" value="${fornecedor.nome || ''}" required></div>
+            <div><label class="block font-medium">Contato</label><input type="text" name="contato" class="w-full p-2 border rounded-md" value="${fornecedor.contato || ''}"></div>
+            <div class="lg:col-span-3"><label class="block font-medium">Razão Social</label><input type="text" name="razao_social" class="w-full p-2 border rounded-md" value="${fornecedor.razao_social || ''}"></div>
+            <div><label class="block font-medium">CNPJ</label><input type="text" name="cnpj" class="w-full p-2 border rounded-md" value="${fornecedor.cnpj || ''}"></div>
+            <div><label class="block font-medium">Inscrição Estadual</label><input type="text" name="inscricao_estadual" class="w-full p-2 border rounded-md" value="${fornecedor.inscricao_estadual || ''}"></div>
+            <div><label class="block font-medium">Telefone Fixo</label><input type="text" name="fone" class="w-full p-2 border rounded-md" value="${fornecedor.fone || ''}"></div>
+            <div><label class="block font-medium">Celular</label><input type="text" name="cel" class="w-full p-2 border rounded-md" value="${fornecedor.cel || ''}"></div>
+            <div><label class="block font-medium">WhatsApp</label><input type="text" name="whatsapp" class="w-full p-2 border rounded-md" value="${fornecedor.whatsapp || ''}"></div>
+            <div class="lg:col-span-2"><label class="block font-medium">Endereço</label><input type="text" name="endereco" class="w-full p-2 border rounded-md" value="${fornecedor.endereco || ''}"></div>
+            <div><label class="block font-medium">Bairro</label><input type="text" name="bairro" class="w-full p-2 border rounded-md" value="${fornecedor.bairro || ''}"></div>
+            <div><label class="block font-medium">CEP</label><input type="text" name="cep" class="w-full p-2 border rounded-md" value="${fornecedor.cep || ''}"></div>
+            <div><label class="block font-medium">Cidade</label><input type="text" name="cidade" class="w-full p-2 border rounded-md" value="${fornecedor.cidade || ''}"></div>
+             <div>
+                <label class="block font-medium">Estado (UF)</label>
+                <select name="estado" class="w-full p-2 border rounded-md">
+                    <option value="">Selecione...</option>
+                    <option value="AC" ${fornecedor.estado === 'AC' ? 'selected' : ''}>Acre</option><option value="AL" ${fornecedor.estado === 'AL' ? 'selected' : ''}>Alagoas</option>
+                    <option value="AP" ${fornecedor.estado === 'AP' ? 'selected' : ''}>Amapá</option><option value="AM" ${fornecedor.estado === 'AM' ? 'selected' : ''}>Amazonas</option>
+                    <option value="BA" ${fornecedor.estado === 'BA' ? 'selected' : ''}>Bahia</option><option value="CE" ${fornecedor.estado === 'CE' ? 'selected' : ''}>Ceará</option>
+                    <option value="DF" ${fornecedor.estado === 'DF' ? 'selected' : ''}>Distrito Federal</option><option value="ES" ${fornecedor.estado === 'ES' ? 'selected' : ''}>Espírito Santo</option>
+                    <option value="GO" ${fornecedor.estado === 'GO' ? 'selected' : ''}>Goiás</option><option value="MA" ${fornecedor.estado === 'MA' ? 'selected' : ''}>Maranhão</option>
+                    <option value="MT" ${fornecedor.estado === 'MT' ? 'selected' : ''}>Mato Grosso</option><option value="MS" ${fornecedor.estado === 'MS' ? 'selected' : ''}>Mato Grosso do Sul</option>
+                    <option value="MG" ${fornecedor.estado === 'MG' ? 'selected' : ''}>Minas Gerais</option><option value="PA" ${fornecedor.estado === 'PA' ? 'selected' : ''}>Pará</option>
+                    <option value="PB" ${fornecedor.estado === 'PB' ? 'selected' : ''}>Paraíba</option><option value="PR" ${fornecedor.estado === 'PR' ? 'selected' : ''}>Paraná</option>
+                    <option value="PE" ${fornecedor.estado === 'PE' ? 'selected' : ''}>Pernambuco</option><option value="PI" ${fornecedor.estado === 'PI' ? 'selected' : ''}>Piauí</option>
+                    <option value="RJ" ${fornecedor.estado === 'RJ' ? 'selected' : ''}>Rio de Janeiro</option><option value="RN" ${fornecedor.estado === 'RN' ? 'selected' : ''}>Rio Grande do Norte</option>
+                    <option value="RS" ${fornecedor.estado === 'RS' ? 'selected' : ''}>Rio Grande do Sul</option><option value="RO" ${fornecedor.estado === 'RO' ? 'selected' : ''}>Rondônia</option>
+                    <option value="RR" ${fornecedor.estado === 'RR' ? 'selected' : ''}>Roraima</option><option value="SC" ${fornecedor.estado === 'SC' ? 'selected' : ''}>Santa Catarina</option>
+                    <option value="SP" ${fornecedor.estado === 'SP' ? 'selected' : ''}>São Paulo</option><option value="SE" ${fornecedor.estado === 'SE' ? 'selected' : ''}>Sergipe</option>
+                    <option value="TO" ${fornecedor.estado === 'TO' ? 'selected' : ''}>Tocantins</option>
+                </select>
+            </div>
+            <div class="lg:col-span-2"><label class="block font-medium">E-mail</label><input type="email" name="email" class="w-full p-2 border rounded-md" value="${fornecedor.email || ''}"></div>
+            <div><label class="block font-medium">Site</label><input type="text" name="site" class="w-full p-2 border rounded-md" value="${fornecedor.site || ''}"></div>
+            <div class="lg:col-span-3"><label class="block font-medium">Observação</label><textarea name="observacao" class="w-full p-2 border rounded-md" rows="3">${fornecedor.observacao || ''}</textarea></div>
+        </div>
+        <div class="text-right mt-6 border-t pt-4"><button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Salvar</button></div>`;
+    
+    openModal(title, formHtml, 'fornecedores');
+    if (id) modalForm.dataset.editId = id;
+
+    // --- NOVA LÓGICA PARA O UPLOAD DE XML ---
+    const xmlInput = document.getElementById('nfe-xml-input');
+    const nfeMessage = document.getElementById('nfe-message');
+
+    xmlInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        nfeMessage.textContent = 'A processar o XML...';
+        nfeMessage.className = 'text-sm mt-2 text-blue-600';
+
+        const formData = new FormData();
+        formData.append('nfe_xml', file);
+
+        try {
+            // A API de fetch para ficheiros é um pouco diferente
+            const response = await fetch('/api/fornecedores/consultar-nfe', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            
+            // Preenche o formulário
+            const form = document.getElementById('modal-form');
+            form.querySelector('input[name="nome"]').value = result.nome || '';
+            form.querySelector('input[name="razao_social"]').value = result.razao_social || '';
+            form.querySelector('input[name="cnpj"]').value = result.cnpj || '';
+            form.querySelector('input[name="endereco"]').value = result.endereco || '';
+            form.querySelector('input[name="bairro"]').value = result.bairro || '';
+            form.querySelector('input[name="cidade"]').value = result.cidade || '';
+            form.querySelector('select[name="estado"]').value = result.estado || '';
+            form.querySelector('input[name="cep"]').value = result.cep || '';
+            form.querySelector('input[name="fone"]').value = result.fone || '';
+            
+            nfeMessage.textContent = 'Dados preenchidos com sucesso!';
+            nfeMessage.className = 'text-sm mt-2 text-green-600';
+
+        } catch (error) {
+            nfeMessage.textContent = `Erro: ${error.message}`;
+            nfeMessage.className = 'text-sm mt-2 text-red-600';
+        }
+    });
+};   
+
+const openRelatorioSaidaCombustivelModal = async () => {
+    const title = 'Relatório de Saída de Combustível';
+
+    // 1. Busca os dados para os novos filtros ANTES de criar o modal
+    let funcionariosOptions = '<option value="todos">Todos os Funcionários</option>';
+    let funcoesOptions = '<option value="todos">Todas as Funções</option>';
+    let veiculosOptions = '<option value="todos">Todos os Veículos</option>';
+
+    try {
+        const [funcionariosResponse, funcoesResponse, veiculosResponse] = await Promise.all([
+            api.get('funcionarios?per_page=9999'),
+            api.get('funcoes?per_page=9999'),
+            api.get('veiculos?per_page=9999')
+        ]);
+        funcionariosResponse.data.forEach(f => { funcionariosOptions += `<option value="${f.id}">${f.nome}</option>`; });
+        funcoesResponse.data.forEach(f => { funcoesOptions += `<option value="${f.id}">${f.nome}</option>`; });
+        veiculosResponse.data.forEach(v => { veiculosOptions += `<option value="${v.id}">${v.nome}</option>`; });
+    } catch (error) {
+        alert('Erro ao carregar filtros. Tente novamente.');
+        return;
+    }
+
+    // 2. Cria o HTML do formulário com os novos campos de filtro
+    const formHtml = `
+        <div class="space-y-4">
+            <p class="text-sm text-gray-600">Filtre as saídas de combustível por um período e/ou por funcionário, função e veículo.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <div>
+                    <label class="block font-medium text-sm">Data de Início</label>
+                    <input type="date" id="modal-saida-comb-data-inicio" class="w-full p-2 border rounded-md mt-1">
+                </div>
+                <div>
+                    <label class="block font-medium text-sm">Data de Fim</label>
+                    <input type="date" id="modal-saida-comb-data-fim" class="w-full p-2 border rounded-md mt-1">
+                </div>
+                <div>
+                    <label class="block font-medium text-sm">Funcionário</label>
+                    <select id="modal-saida-comb-funcionario" class="w-full p-2 border rounded-md mt-1">${funcionariosOptions}</select>
+                </div>
+                <div>
+                    <label class="block font-medium text-sm">Função</label>
+                    <select id="modal-saida-comb-funcao" class="w-full p-2 border rounded-md mt-1">${funcoesOptions}</select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-medium text-sm">Veículo</label>
+                    <select id="modal-saida-comb-veiculo" class="w-full p-2 border rounded-md mt-1">${veiculosOptions}</select>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4 border-t">
+                <button id="consultar-saida-comb-modal-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Consultar</button>
+                <button id="pdf-saida-comb-modal-btn" class="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800">Imprimir PDF</button>
+            </div>
+            <div id="container-saida-comb-modal" class="mt-4 border-t pt-4 hidden"></div>
+        </div>
+    `;
+
+    openModal(title, formHtml, 'relatorio-saida-combustivel');
+
+    // 3. Atualiza os "ouvintes de eventos" para incluir os novos filtros na chamada da API
+    document.getElementById('consultar-saida-comb-modal-btn').addEventListener('click', async () => {
+    const dataInicio = document.getElementById('modal-saida-comb-data-inicio').value;
+    const dataFim = document.getElementById('modal-saida-comb-data-fim').value;
+    const funcionarioId = document.getElementById('modal-saida-comb-funcionario').value;
+    const funcaoId = document.getElementById('modal-saida-comb-funcao').value;
+    const veiculoId = document.getElementById('modal-saida-comb-veiculo').value;
+    
+    const container = document.getElementById('container-saida-comb-modal');
+    container.classList.remove('hidden');
+    container.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div></div>`;
+
+    try {
+        const url = `relatorios/saidas-combustivel?data_inicio=${dataInicio}&data_fim=${dataFim}&funcionario_id=${funcionarioId}&funcao_id=${funcaoId}&veiculo_id=${veiculoId}`;
+        const saidas = await api.get(url);
+        
+        if (saidas.length === 0) {
+            container.innerHTML = `<p class="text-center p-8 text-gray-500">Nenhuma saída encontrada para os filtros selecionados.</p>`;
+            return;
         }
 
-        const formHtml = `
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                <div class="lg:col-span-2"><label class="block font-medium">Nome</label><input type="text" name="nome" class="w-full p-2 border rounded-md" value="${fornecedor.nome || ''}" required></div>
-                <div><label class="block font-medium">Contato</label><input type="text" name="contato" class="w-full p-2 border rounded-md" value="${fornecedor.contato || ''}"></div>
-                <div class="lg:col-span-3"><label class="block font-medium">Razão Social</label><input type="text" name="razao_social" class="w-full p-2 border rounded-md" value="${fornecedor.razao_social || ''}"></div>
-                <div><label class="block font-medium">CNPJ</label><input type="text" name="cnpj" class="w-full p-2 border rounded-md" value="${fornecedor.cnpj || ''}"></div>
-                <div><label class="block font-medium">Inscrição Estadual</label><input type="text" name="inscricao_estadual" class="w-full p-2 border rounded-md" value="${fornecedor.inscricao_estadual || ''}"></div>
-                <div><label class="block font-medium">Telefone Fixo</label><input type="text" name="fone" class="w-full p-2 border rounded-md" value="${fornecedor.fone || ''}"></div>
-                <div><label class="block font-medium">Celular</label><input type="text" name="cel" class="w-full p-2 border rounded-md" value="${fornecedor.cel || ''}"></div>
-                <div><label class="block font-medium">WhatsApp</label><input type="text" name="whatsapp" class="w-full p-2 border rounded-md" value="${fornecedor.whatsapp || ''}"></div>
-                <div class="lg:col-span-2"><label class="block font-medium">Endereço</label><input type="text" name="endereco" class="w-full p-2 border rounded-md" value="${fornecedor.endereco || ''}"></div>
-                <div><label class="block font-medium">Bairro</label><input type="text" name="bairro" class="w-full p-2 border rounded-md" value="${fornecedor.bairro || ''}"></div>
-                <div><label class="block font-medium">CEP</label><input type="text" name="cep" class="w-full p-2 border rounded-md" value="${fornecedor.cep || ''}"></div>
-                <div><label class="block font-medium">Cidade</label><input type="text" name="cidade" class="w-full p-2 border rounded-md" value="${fornecedor.cidade || ''}"></div>
-                 <div>
-                    <label class="block font-medium">Estado (UF)</label>
-                    <select name="estado" class="w-full p-2 border rounded-md">
-                        <option value="">Selecione...</option>
-                        <option value="AC" ${fornecedor.estado === 'AC' ? 'selected' : ''}>Acre</option>
-                        <option value="AL" ${fornecedor.estado === 'AL' ? 'selected' : ''}>Alagoas</option>
-                        <option value="AP" ${fornecedor.estado === 'AP' ? 'selected' : ''}>Amapá</option>
-                        <option value="AM" ${fornecedor.estado === 'AM' ? 'selected' : ''}>Amazonas</option>
-                        <option value="BA" ${fornecedor.estado === 'BA' ? 'selected' : ''}>Bahia</option>
-                        <option value="CE" ${fornecedor.estado === 'CE' ? 'selected' : ''}>Ceará</option>
-                        <option value="DF" ${fornecedor.estado === 'DF' ? 'selected' : ''}>Distrito Federal</option>
-                        <option value="ES" ${fornecedor.estado === 'ES' ? 'selected' : ''}>Espírito Santo</option>
-                        <option value="GO" ${fornecedor.estado === 'GO' ? 'selected' : ''}>Goiás</option>
-                        <option value="MA" ${fornecedor.estado === 'MA' ? 'selected' : ''}>Maranhão</option>
-                        <option value="MT" ${fornecedor.estado === 'MT' ? 'selected' : ''}>Mato Grosso</option>
-                        <option value="MS" ${fornecedor.estado === 'MS' ? 'selected' : ''}>Mato Grosso do Sul</option>
-                        <option value="MG" ${fornecedor.estado === 'MG' ? 'selected' : ''}>Minas Gerais</option>
-                        <option value="PA" ${fornecedor.estado === 'PA' ? 'selected' : ''}>Pará</option>
-                        <option value="PB" ${fornecedor.estado === 'PB' ? 'selected' : ''}>Paraíba</option>
-                        <option value="PR" ${fornecedor.estado === 'PR' ? 'selected' : ''}>Paraná</option>
-                        <option value="PE" ${fornecedor.estado === 'PE' ? 'selected' : ''}>Pernambuco</option>
-                        <option value="PI" ${fornecedor.estado === 'PI' ? 'selected' : ''}>Piauí</option>
-                        <option value="RJ" ${fornecedor.estado === 'RJ' ? 'selected' : ''}>Rio de Janeiro</option>
-                        <option value="RN" ${fornecedor.estado === 'RN' ? 'selected' : ''}>Rio Grande do Norte</option>
-                        <option value="RS" ${fornecedor.estado === 'RS' ? 'selected' : ''}>Rio Grande do Sul</option>
-                        <option value="RO" ${fornecedor.estado === 'RO' ? 'selected' : ''}>Rondônia</option>
-                        <option value="RR" ${fornecedor.estado === 'RR' ? 'selected' : ''}>Roraima</option>
-                        <option value="SC" ${fornecedor.estado === 'SC' ? 'selected' : ''}>Santa Catarina</option>
-                        <option value="SP" ${fornecedor.estado === 'SP' ? 'selected' : ''}>São Paulo</option>
-                        <option value="SE" ${fornecedor.estado === 'SE' ? 'selected' : ''}>Sergipe</option>
-                        <option value="TO" ${fornecedor.estado === 'TO' ? 'selected' : ''}>Tocantins</option>
-                    </select>
-                </div>
-                <div class="lg:col-span-2"><label class="block font-medium">E-mail</label><input type="email" name="email" class="w-full p-2 border rounded-md" value="${fornecedor.email || ''}"></div>
-                <div><label class="block font-medium">Site</label><input type="text" name="site" class="w-full p-2 border rounded-md" value="${fornecedor.site || ''}"></div>
-                <div class="lg:col-span-3"><label class="block font-medium">Observação</label><textarea name="observacao" class="w-full p-2 border rounded-md" rows="3">${fornecedor.observacao || ''}</textarea></div>
-            </div>
-            <div class="text-right mt-6 border-t pt-4"><button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Salvar</button></div>`;
-        
-        openModal(title, formHtml, 'fornecedores');
-        if (id) modalForm.dataset.editId = id;
-    };    
-
-const openRelatorioSaidaCombustivelModal = () => {
-        const title = 'Relatório de Saída de Combustível';
-        const formHtml = `
-            <div class="space-y-4">
-                <p class="text-sm text-gray-600">Filtre as saídas de combustível por um período para ver todos os abastecimentos registados.</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    <div>
-                        <label for="modal-saida-comb-data-inicio" class="block font-medium text-sm">Data de Início</label>
-                        <input type="date" id="modal-saida-comb-data-inicio" class="w-full p-2 border rounded-md mt-1">
-                    </div>
-                    <div>
-                        <label for="modal-saida-comb-data-fim" class="block font-medium text-sm">Data de Fim</label>
-                        <input type="date" id="modal-saida-comb-data-fim" class="w-full p-2 border rounded-md mt-1">
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t">
-                    <button id="consultar-saida-comb-modal-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center justify-center"><i class="fas fa-search mr-2"></i>Consultar</button>
-                    <button id="pdf-saida-comb-modal-btn" class="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 flex items-center justify-center"><i class="fas fa-file-pdf mr-2"></i>Imprimir PDF</button>
-                </div>
-                <div id="container-saida-comb-modal" class="mt-4 border-t pt-4 hidden"></div>
-            </div>
-        `;
-
-        openModal(title, formHtml, 'relatorio-saida-combustivel');
-
-        // Adiciona os eventos aos botões
-        document.getElementById('consultar-saida-comb-modal-btn').addEventListener('click', async () => {
-            const dataInicio = document.getElementById('modal-saida-comb-data-inicio').value;
-            const dataFim = document.getElementById('modal-saida-comb-data-fim').value;
-            const container = document.getElementById('container-saida-comb-modal');
-            container.classList.remove('hidden');
-            container.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div></div>`;
-
-            try {
-                const saidas = await api.get(`relatorios/saidas-combustivel?data_inicio=${dataInicio}&data_fim=${dataFim}`);
-                if (saidas.length === 0) {
-                    container.innerHTML = `<p class="text-center p-8 text-gray-500">Nenhuma saída encontrada.</p>`;
-                    return;
-                }
-                const tableHeaders = `<tr><th class="p-3">Data</th><th class="p-3">Veículo</th><th class="p-3">Combustível</th><th class="p-3">Função</th><th class="p-3 text-right">Qtd (L)</th><th class="p-3 text-right">Horímetro</th><th class="p-3">Utilizador</th></tr>`;
-                const tableRows = saidas.map(s => `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-3">${s.data}</td>
-                        <td class="p-3 font-medium">${s.veiculo_nome}</td>
-                        <td class="p-3">${s.tipo_combustivel_nome}</td>
-                        <td class="p-3">${s.funcao_nome}</td>
-                        <td class="p-3 text-right">${s.quantidade.toFixed(2)}</td>
-                        <td class="p-3 text-right">${s.hodometro_horimetro || ''}</td>
-                        <td class="p-3 text-gray-500">${s.usuario_nome}</td>
-                    </tr>`).join('');
-                container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-100">${tableHeaders}</thead><tbody>${tableRows}</tbody></table></div>`;
-            } catch (error) {
-                container.innerHTML = `<p class="text-center p-8 text-red-500">Falha ao gerar o relatório.</p>`;
+        // --- Lógica de Agrupamento em JavaScript ---
+        const grouped = saidas.reduce((acc, s) => {
+            const key = `${s.veiculo_nome} | ${s.funcao_nome}`;
+            if (!acc[key]) {
+                acc[key] = {
+                    registos: [],
+                    total_litros: 0,
+                    total_horas: 0
+                };
             }
-        });
+            acc[key].registos.push(s);
+            acc[key].total_litros += s.quantidade;
+            acc[key].total_horas += (s.hodometro_horimetro - s.horimetro_inicial) || 0; // Recalcula para garantir
+            return acc;
+        }, {});
 
-        document.getElementById('pdf-saida-comb-modal-btn').addEventListener('click', () => {
-            const dataInicio = document.getElementById('modal-saida-comb-data-inicio').value;
-            const dataFim = document.getElementById('modal-saida-comb-data-fim').value;
-            if (!dataInicio || !dataFim) {
-                alert("Por favor, selecione as datas para gerar o PDF.");
-                return;
-            }
-            window.open(`/api/relatorios/saidas-combustivel/pdf?data_inicio=${dataInicio}&data_fim=${dataFim}`, '_blank');
-        });
-    };
+        let htmlResult = '';
+        for (const key in grouped) {
+            const group = grouped[key];
+            htmlResult += `<div class="mb-6">
+                <h4 class="font-bold text-lg bg-gray-100 p-2 rounded-t-lg">${key}</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="p-2">Data</th>
+                                <th class="p-2">Funcionário</th>
+                                <th class="p-2 text-right">Qtd (L)</th>
+                                <th class="p-2 text-right">Horas Trab.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${group.registos.map(s => `
+                                <tr class="border-b">
+                                    <td class="p-2">${s.data}</td>
+                                    <td class="p-2">${s.funcionario_nome}</td>
+                                    <td class="p-2 text-right">${s.quantidade.toFixed(2)}</td>
+                                    <td class="p-2 text-right">${((s.hodometro_horimetro - s.horimetro_inicial) || 0).toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="bg-gray-100 font-bold">
+                                <td colspan="2" class="p-2 text-right">TOTAIS:</td>
+                                <td class="p-2 text-right">${group.total_litros.toFixed(2)} L</td>
+                                <td class="p-2 text-right">${group.total_horas.toFixed(2)} h</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+        container.innerHTML = htmlResult;
+
+    } catch (error) {
+        container.innerHTML = `<p class="text-center p-8 text-red-500">Falha ao gerar o relatório.</p>`;
+    }
+});
+
+    document.getElementById('pdf-saida-comb-modal-btn').addEventListener('click', () => {
+        const dataInicio = document.getElementById('modal-saida-comb-data-inicio').value;
+        const dataFim = document.getElementById('modal-saida-comb-data-fim').value;
+        const funcionarioId = document.getElementById('modal-saida-comb-funcionario').value;
+        const funcaoId = document.getElementById('modal-saida-comb-funcao').value;
+        const veiculoId = document.getElementById('modal-saida-comb-veiculo').value;
+
+        const url = `/api/relatorios/saidas-combustivel/pdf?data_inicio=${dataInicio}&data_fim=${dataFim}&funcionario_id=${funcionarioId}&funcao_id=${funcaoId}&veiculo_id=${veiculoId}`;
+        window.open(url, '_blank');
+    });
+};
 
     const openCodigoAcessoModal = async () => {
         let title = 'Gerar Nova Chave de Acesso';
@@ -1543,6 +1947,138 @@ const openRelatorioSaidaCombustivelModal = () => {
         renderTable();
     };
 
+    // Adicione esta função completa em app.js
+
+    const openImplementoModal = async (id = null) => {
+        let implemento = { nome: '', descricao: '' };
+        let title = 'Adicionar Novo Implemento';
+        if (id) {
+            try {
+                implemento = await api.get('implementos', id);
+                title = 'Editar Implemento';
+            } catch (error) { alert('Não foi possível carregar os dados do implemento.'); return; }
+        }
+        const formHtml = `
+            <div class="space-y-4">
+                <div><label class="block font-medium">Nome do Implemento</label><input type="text" name="nome" class="w-full p-2 border rounded-md" value="${implemento.nome}" required></div>
+                <div><label class="block font-medium">Descrição</label><textarea name="descricao" class="w-full p-2 border rounded-md" rows="3">${implemento.descricao || ''}</textarea></div>
+            </div>
+            <div class="text-right mt-6 border-t pt-4"><button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Salvar</button></div>`;
+        openModal(title, formHtml, 'implementos');
+        if (id) modalForm.dataset.editId = id;
+    };
+
+    const renderImportarProdutos = async () => {
+        const section = document.getElementById('importar-produtos');
+        if (!section) return;
+
+        section.innerHTML = `
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2 flex items-center"><i class="fas fa-file-import fa-fw mr-4 text-gray-500"></i>Importar Produtos via XML da NF-e</h2>
+                <p class="text-gray-600 mb-6">Faça o upload do ficheiro XML de uma Nota Fiscal para dar entrada nos produtos automaticamente.</p>
+                <div class="border-t pt-6">
+                    <label class="block font-medium text-lg mb-2">1. Selecione o Ficheiro XML</label>
+                    <input type="file" id="nfe-xml-upload-input" class="w-full max-w-lg text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" accept=".xml">
+                    <div id="xml-message" class="text-sm mt-2"></div>
+                </div>
+                <div id="produtos-container" class="mt-6 border-t pt-6 hidden">
+                    <h3 class="font-medium text-lg mb-4">2. Confirme os Itens para Importação</h3>
+                    <p class="text-sm text-gray-600 mb-4">Associe cada item a uma <strong>Categoria</strong> e <strong>Almoxarifado</strong> antes de importar.</p>
+                    <div id="lista-produtos-xml" class="space-y-4"></div>
+                    <div class="text-right mt-6">
+                        <button id="importar-produtos-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-bold"><i class="fas fa-check-circle mr-2"></i>Importar Produtos</button>
+                    </div>
+                </div>
+            </div>`;
+
+        const xmlInput = section.querySelector('#nfe-xml-upload-input');
+        const xmlMessage = section.querySelector('#xml-message');
+        const produtosContainer = section.querySelector('#produtos-container');
+        const listaProdutosXml = section.querySelector('#lista-produtos-xml');
+        const importarBtn = section.querySelector('#importar-produtos-btn');
+        let fornecedorIdGlobal = null;
+
+        xmlInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            xmlMessage.textContent = 'A processar o XML...';
+            const formData = new FormData();
+            formData.append('nfe_xml', file);
+            try {
+                const response = await fetch('/api/produtos/ler-xml-nfe', { method: 'POST', body: formData });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error);
+                fornecedorIdGlobal = result.fornecedor_id;
+                const [categoriasResponse, almoxarifadosResponse] = await Promise.all([api.get('categorias'), api.get('almoxarifados')]);
+                const categoriasOptions = categoriasResponse.data.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+                const almoxarifadosOptions = almoxarifadosResponse.data.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+                listaProdutosXml.innerHTML = result.produtos.map((p, index) => `
+                    <div class="border rounded-lg p-4 bg-gray-50 produto-item" data-index="${index}">
+                        <p class="font-bold">${p.nome}</p>
+                        <p class="text-sm text-gray-600">Qtd: ${p.quantidade} ${p.unidade} | Valor Unit.: R$ ${p.preco_unitario.toFixed(2)}</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <div><label class="block text-xs font-medium">Categoria*</label><select class="w-full p-2 border rounded-md" name="categoria_id_${index}" required>${categoriasOptions}</select></div>
+                            <div><label class="block text-xs font-medium">Almoxarifado*</label><select class="w-full p-2 border rounded-md" name="almoxarifado_id_${index}" required>${almoxarifadosOptions}</select></div>
+                        </div>
+                        <div class="hidden">
+                            <input type="hidden" name="nome_${index}" value="${p.nome}"><input type="hidden" name="unidade_${index}" value="${p.unidade}"><input type="hidden" name="quantidade_${index}" value="${p.quantidade}"><input type="hidden" name="preco_unitario_${index}" value="${p.preco_unitario}"><input type="hidden" name="lote_${index}" value="${p.lote}"><input type="hidden" name="data_validade_${index}" value="${p.data_validade}">
+                        </div>
+                    </div>`).join('');
+                produtosContainer.classList.remove('hidden');
+                xmlMessage.textContent = `${result.produtos.length} produto(s) encontrado(s).`;
+            } catch (error) {
+                xmlMessage.textContent = `Erro: ${error.message}`;
+            }
+        });
+
+        importarBtn.addEventListener('click', async () => {
+            const produtosParaImportar = [];
+            let hasInvalidFields = false;
+            document.querySelectorAll('.produto-item').forEach(item => {
+                const index = item.dataset.index;
+                const categoriaSelect = item.querySelector(`select[name="categoria_id_${index}"]`);
+                const almoxarifadoSelect = item.querySelector(`select[name="almoxarifado_id_${index}"]`);
+                if (!categoriaSelect.value || !almoxarifadoSelect.value) hasInvalidFields = true;
+                produtosParaImportar.push({
+                    nome: item.querySelector(`input[name="nome_${index}"]`).value,
+                    unidade: item.querySelector(`input[name="unidade_${index}"]`).value,
+                    quantidade: item.querySelector(`input[name="quantidade_${index}"]`).value,
+                    preco_unitario: item.querySelector(`input[name="preco_unitario_${index}"]`).value,
+                    lote: item.querySelector(`input[name="lote_${index}"]`).value,
+                    data_validade: item.querySelector(`input[name="data_validade_${index}"]`).value,
+                    categoria_id: categoriaSelect.value,
+                    almoxarifado_id: almoxarifadoSelect.value,
+                    fornecedor_id: fornecedorIdGlobal
+                });
+            });
+            if (hasInvalidFields) {
+                alert('Por favor, preencha a Categoria e o Almoxarifado para todos os itens.');
+                return;
+            }
+            importarBtn.disabled = true;
+            importarBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>A Importar...';
+            try {
+                const result = await api.post('produtos/importar-nfe', { produtos: produtosParaImportar });
+                alert(result.message);
+                showSection('produtos'); // Redireciona para a lista de produtos após o sucesso
+            } catch (error) {
+                alert(`Erro ao importar: ${error.message}`);
+            } finally {
+                importarBtn.disabled = false;
+                importarBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Importar Produtos';
+            }
+        });
+    };
+        const implementosConfig = {
+            sectionId: 'implementos', // Deve corresponder ao ID na secção que vamos criar
+            entityName: 'implementos',
+            endpoint: 'implementos',
+            title: 'Cadastro de Implementos',
+            addBtnText: 'Adicionar Implemento',
+            tableHeaders: ['Nome', 'Descrição', 'Ações'],
+            renderRow: (i) => `<td class="p-3 font-medium">${i.nome}</td><td class="p-3">${i.descricao || ''}</td>`,
+            openModalFn: openImplementoModal
+        };
      const fornecedoresConfig = {
         sectionId: 'fornecedores',
         entityName: 'fornecedores',
@@ -1689,51 +2225,90 @@ const openRelatorioSaidaCombustivelModal = () => {
         'manutencoes': () => renderGenericCrud(manutencoesConfig),
         'codigos_acesso': () => renderGenericCrud(codigosAcessoConfig),
         'relatorio-movimentacoes': () => renderRelatorioGenerico(relatorioMovimentacoesConfig),
-        'funcionarios': () => renderGenericCrud(funcionariosConfig)
+        'importar-produtos': renderImportarProdutos,
+        'funcionarios': () => renderGenericCrud(funcionariosConfig),
+        'implementos': () => renderGenericCrud(implementosConfig)
     };
     
     // --- Event Listeners Globais ---
-    document.body.addEventListener('click', async (e) => {
-        const button = e.target.closest('button');
-        if (button && button.classList.contains('edit-mov-btn')) {
-            const movimentacaoId = button.dataset.id;
-            openMovimentacaoModal(movimentacaoId);
-            return; // Interrompe a execução para não confundir com o outro listener
-        }
-        if (!button || !button.dataset.entity) return;
-        const { id, entity } = button.dataset;
-// --- NOVA LÓGICA PARA BOTÃO DE DETALHES ---
-       if (button && button.classList.contains('details-btn')) {
-            const fornecedorId = button.dataset.id;
-            const fornecedorNome = button.dataset.name;
-            openNotasFiscaisModal(fornecedorId, fornecedorNome);
-            return;
-        }
-        if (button.classList.contains('delete-btn')) {
-            if (confirm(`Tem a certeza que deseja excluir este item?`)) {
-                try {
-                    const result = await api.delete(entity, id);
-                    alert(result.message);
-                    showSection(entity);
-                } catch (error) { alert(error.message); }
+    // SUBSTITUA a função 'document.body.addEventListener' inteira por esta:
+// SUBSTITUA o seu event listener 'document.body.addEventListener' por este bloco completo
+
+document.body.addEventListener('click', async (e) => {
+    const button = e.target.closest('button');
+    if (!button) return; // Se o clique não foi num botão, sai da função
+
+    const action = button.dataset.action;
+    const id = button.dataset.id;
+
+    // Ações para Entradas de Combustível
+    if (action === 'edit-combustivel-entrada') {
+        openEditCombustivelEntradaModal(id);
+        return;
+    }
+    if (action === 'delete-combustivel-entrada') {
+        deleteCombustivelEntrada(id);
+        return;
+    }
+
+    // =====> LÓGICA CORRIGIDA E ADICIONADA AQUI <=====
+    // Ações para Saídas de Combustível
+    if (action === 'edit-combustivel-saida') {
+        openEditCombustivelSaidaModal(id);
+        return;
+    }
+    if (action === 'delete-combustivel-saida') {
+        deleteCombustivelSaida(id);
+        return;
+    }
+    // ===============================================
+
+    // Ação para corrigir movimentação (código que já existia)
+    if (button.classList.contains('edit-mov-btn')) {
+        const movimentacaoId = button.dataset.id;
+        openMovimentacaoModal(movimentacaoId);
+        return;
+    }
+
+    // Ação para ver detalhes (notas fiscais) (código que já existia)
+    if (button.classList.contains('details-btn')) {
+        const fornecedorId = button.dataset.id;
+        const fornecedorNome = button.dataset.name;
+        openNotasFiscaisModal(fornecedorId, fornecedorNome);
+        return;
+    }
+
+    // Ações genéricas de Editar e Apagar (código que já existia)
+    const entity = button.dataset.entity;
+    if (!entity) return;
+
+    if (button.classList.contains('delete-btn')) {
+        if (confirm(`Tem a certeza que deseja excluir este item?`)) {
+            try {
+                const result = await api.delete(entity, id);
+                alert(result.message);
+                const currentSection = document.querySelector('.content-section.active').id;
+                showSection(currentSection);
+            } catch (error) {
+                alert(error.message);
             }
-        } else if (button.classList.contains('edit-btn')) {
-            if (entity === 'setores') openSetorModal(id);
-            else if (entity === 'categorias') openCategoriaModal(id);
-            else if (entity === 'almoxarifados') openAlmoxarifadoModal(id);
-            else if (entity === 'produtos') openProdutoModal(id);
-            else if (entity === 'usuarios') openUsuarioModal(id);
-            else if (entity === 'funcoes') openFuncaoModal(id);
-            else if (entity === 'tipos_combustivel') openTipoCombustivelModal(id);
-            else if (entity === 'tipos_veiculo') openTipoVeiculoModal(id);
-            else if (entity === 'veiculos') openVeiculoModal(id);
-            else if (entity === 'fornecedores') openFornecedorModal(id);
-            else if (entity === 'codigos_acesso') openCodigoAcessoModal();
-            else if (button.classList.contains('edit-btn')) 
-            if (entity === 'manutencoes') openManutencaoModal(id);
-            else if (entity === 'funcionarios') openFuncionarioModal(id);
         }
-    });
+    } else if (button.classList.contains('edit-btn')) {
+        if (entity === 'setores') openSetorModal(id);
+        else if (entity === 'categorias') openCategoriaModal(id);
+        else if (entity === 'almoxarifados') openAlmoxarifadoModal(id);
+        else if (entity === 'produtos') openProdutoModal(id);
+        else if (entity === 'usuarios') openUsuarioModal(id);
+        else if (entity === 'funcoes') openFuncaoModal(id);
+        else if (entity === 'tipos_combustivel') openTipoCombustivelModal(id);
+        else if (entity === 'tipos_veiculo') openTipoVeiculoModal(id);
+        else if (entity === 'veiculos') openVeiculoModal(id);
+        else if (entity === 'fornecedores') openFornecedorModal(id);
+        else if (entity === 'manutencoes') openManutencaoModal(id);
+        else if (entity === 'funcionarios') openFuncionarioModal(id);
+        else if (entity === 'implementos') openImplementoModal(id);
+    }
+});
     window.addEventListener('popstate', (event) => {
         // Se o utilizador clicar em "Voltar", escondemos o modal visualmente
         // sem adicionar um novo estado ao histórico.
@@ -1750,13 +2325,14 @@ const openRelatorioSaidaCombustivelModal = () => {
         event.returnValue = '';
     });
     // Substitua o bloco acima por este
+// SUBSTITUA o seu event listener 'submit' do modalForm por este bloco completo
+
 if(modalForm) {
     modalForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        // --- CORREÇÃO APLICADA AQUI ---
         const submitButton = e.target.querySelector('button[type="submit"]');
-        const originalButtonText = submitButton.textContent; // Guarda o texto original do botão
+        const originalButtonText = submitButton.textContent;
         submitButton.disabled = true;
         submitButton.textContent = 'Aguarde...';
 
@@ -1765,22 +2341,29 @@ if(modalForm) {
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
         
-        if (entity === 'produtos') {
-            data.is_epi = e.target.querySelector('input[name="is_epi"]').checked;
-            data.is_peca_veicular = e.target.querySelector('input[name="is_peca_veicular"]').checked;
-        }
-        // --- LÓGICA ADICIONADA PARA RECOLHER PEÇAS DA MANUTENÇÃO ---
+        // --- CÓDIGO CORRIGIDO ---
         if (entity === 'notas-fiscais') {
-                if (editId) {
-                    result = await api.put('notas-fiscais', editId, data);
-                } else {
-                    result = await api.post('notas-fiscais', data);
-                }
-                closeModal();
-                const fornecedorNome = document.querySelector('#modal-title').textContent.replace('Notas Fiscais de: ', '');
-                openNotasFiscaisModal(data.fornecedor_id, fornecedorNome);
-                return; 
+            let result;
+            // A verificação abaixo impede o erro 'textContent of null'
+            const modalTitleElement = document.querySelector('#modal-title');
+            const fornecedorNome = modalTitleElement ? modalTitleElement.textContent.replace('Notas Fiscais de: ', '') : '';
+
+            if (editId) {
+                result = await api.put('notas-fiscais', editId, data);
+            } else {
+                result = await api.post('notas-fiscais', data);
             }
+
+            closeModal();
+            // Garante que só tenta reabrir o modal se tivermos o nome do fornecedor
+            if (fornecedorNome) {
+                openNotasFiscaisModal(data.fornecedor_id, fornecedorNome);
+            }
+            
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
+            return; 
+        }
 
         if (entity === 'manutencoes') {
             data.pecas = [];
@@ -1799,11 +2382,15 @@ if(modalForm) {
             delete data.password;
         }
 
-        try {
+       try {
             let result;
-            // --- NOVA CONDIÇÃO ADICIONADA AQUI ---
-            if (entity === 'movimentacoes' && editId) {
-                // Rota específica para a correção de movimentação
+             if (entity === 'combustivel-entradas' && editId) {
+                result = await api.put('combustivel/entradas', editId, data);
+            } 
+            else if (entity === 'combustivel/saidas' && editId) {
+                result = await api.put('combustivel/saidas', editId, data);
+            } 
+            else if (entity === 'movimentacoes' && editId) {
                 result = await api.put('movimentacoes', editId, data);
             } else if (editId) {
                 result = await api.put(entity, editId, data);
@@ -1812,10 +2399,18 @@ if(modalForm) {
             }
             alert(result.message);
             closeModal();
-            // Recarrega a seção correta
-            showSection(entity === 'movimentacoes' ? 'movimentacoes' : entity);
+
+            if (entity.includes('combustivel')) {
+                showSection('controle_combustivel');
+            } else if (entity.includes('codigos-acesso')) {
+                showSection('codigos_acesso');
+            } else {
+                showSection(entity);
+            }
+
         } catch (error) {
             alert(error.message);
+        } finally {
             submitButton.disabled = false;
             submitButton.textContent = originalButtonText;
         }

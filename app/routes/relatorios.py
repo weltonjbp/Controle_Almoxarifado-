@@ -4,11 +4,16 @@ from flask import Blueprint, jsonify, request, render_template, Response
 # Adicionar func do sqlalchemy para usar a função SUM
 from sqlalchemy import func 
 # Adicionar os modelos Produto e Setor
-from ..models import db, Movimentacao, Produto, Setor, Veiculo, Manutencao  
 from flask_login import login_required
 from datetime import datetime
 from io import BytesIO
+from collections import defaultdict
 from xhtml2pdf import pisa
+from ..models import db, Movimentacao, Produto, Setor, Veiculo, Manutencao, CombustivelSaida, Usuario, Funcionario, Funcao, TipoCombustivel
+
+
+
+
 
 relatorios_bp = Blueprint('relatorios', __name__)
 
@@ -264,76 +269,109 @@ def get_custos_manutencao():
 @relatorios_bp.route('/relatorios/saidas-combustivel', methods=['GET'])
 @login_required
 def get_saidas_combustivel():
-    """ Retorna dados de saída de combustível para exibição em tela. """
     data_inicio = request.args.get('data_inicio')
     data_fim = request.args.get('data_fim')
-    
-    # Importa o modelo CombustivelSaida aqui para evitar importação circular
-    from ..models import CombustivelSaida
+    funcionario_id = request.args.get('funcionario_id')
+    funcao_id = request.args.get('funcao_id')
+    veiculo_id = request.args.get('veiculo_id')
 
     query = CombustivelSaida.query
+    
     if data_inicio:
         query = query.filter(CombustivelSaida.data >= data_inicio)
     if data_fim:
         query = query.filter(CombustivelSaida.data <= f'{data_fim} 23:59:59')
+    
+    if funcionario_id and funcionario_id != 'todos':
+        query = query.filter(CombustivelSaida.funcionario_id == funcionario_id)
+    if funcao_id and funcao_id != 'todos':
+        query = query.filter(CombustivelSaida.funcao_id == funcao_id)
+    if veiculo_id and veiculo_id != 'todos':
+        query = query.filter(CombustivelSaida.veiculo_id == veiculo_id)
 
     saidas = query.order_by(CombustivelSaida.data.desc()).all()
     
     dados_relatorio = [{
-        'data': s.data.strftime('%d/%m/%Y %H:%M'),
+        'data': s.data.strftime('%d/%m/%Y'),
         'veiculo_nome': s.veiculo.nome if s.veiculo else 'N/A',
         'tipo_combustivel_nome': s.tipo_combustivel.nome if s.tipo_combustivel else 'N/A',
         'funcao_nome': s.funcao.nome if s.funcao else 'N/A',
         'quantidade': s.quantidade_abastecida,
-        'hodometro_horimetro': s.hodometro_horimetro,
-        'usuario_nome': s.usuario.username if s.usuario else 'N/A'
+        'hodometro_horimetro': s.horimetro_final, # <-- CORREÇÃO AQUI
+        'usuario_nome': s.usuario.username if s.usuario else 'N/A',
+        'funcionario_nome': s.funcionario.nome if s.funcionario else 'N/A'
     } for s in saidas]
 
     return jsonify(dados_relatorio)
 
-
 @relatorios_bp.route('/relatorios/saidas-combustivel/pdf', methods=['GET'])
 @login_required
 def gerar_pdf_saidas_combustivel():
-    """ Gera um PDF com o histórico de saídas de combustível. """
-    from ..models import CombustivelSaida
-    
     data_inicio_str = request.args.get('data_inicio')
     data_fim_str = request.args.get('data_fim')
+    funcionario_id = request.args.get('funcionario_id')
+    funcao_id = request.args.get('funcao_id')
+    veiculo_id = request.args.get('veiculo_id')
 
     query = CombustivelSaida.query
+
+    # Construção do título dinâmico
+    filtros_descricao = []
+    if data_inicio_str and data_fim_str:
+        filtros_descricao.append(f"Período de {datetime.strptime(data_inicio_str, '%Y-%m-%d').strftime('%d/%m/%Y')} a {datetime.strptime(data_fim_str, '%Y-%m-%d').strftime('%d/%m/%Y')}")
+    elif data_inicio_str:
+        filtros_descricao.append(f"A partir de {datetime.strptime(data_inicio_str, '%Y-%m-%d').strftime('%d/%m/%Y')}")
+    elif data_fim_str:
+        filtros_descricao.append(f"Até {datetime.strptime(data_fim_str, '%Y-%m-%d').strftime('%d/%m/%Y')}")
+
+    # Aplica os filtros à query
     if data_inicio_str:
         query = query.filter(CombustivelSaida.data >= data_inicio_str)
     if data_fim_str:
         query = query.filter(CombustivelSaida.data <= f'{data_fim_str} 23:59:59')
+        
+    if funcionario_id and funcionario_id != 'todos':
+        f = Funcionario.query.get(funcionario_id)
+        if f:
+            filtros_descricao.append(f"Funcionário: {f.nome}")
+        query = query.filter(CombustivelSaida.funcionario_id == funcionario_id)
+    if funcao_id and funcao_id != 'todos':
+        f = Funcao.query.get(funcao_id)
+        if f:
+            filtros_descricao.append(f"Função: {f.nome}")
+        query = query.filter(CombustivelSaida.funcao_id == funcao_id)
+    if veiculo_id and veiculo_id != 'todos':
+        v = Veiculo.query.get(veiculo_id)
+        if v:
+            filtros_descricao.append(f"Veículo: {v.nome}")
+        query = query.filter(CombustivelSaida.veiculo_id == veiculo_id)
 
-    saidas = query.order_by(CombustivelSaida.data.asc()).all()
+    saidas = query.order_by(CombustivelSaida.veiculo_id, CombustivelSaida.funcao_id, CombustivelSaida.data).all()
     
-    total_geral = sum(s.quantidade_abastecida for s in saidas)
+    # Agrupamento dos dados
+    dados_agrupados = defaultdict(lambda: {'registos': [], 'total_litros': 0, 'total_horas': 0})
+    for s in saidas:
+        chave = (s.veiculo.nome, s.funcao.nome)
+        dados_agrupados[chave]['registos'].append({
+            'data': s.data.strftime('%d/%m/%Y'),
+            'funcionario_nome': s.funcionario.nome if s.funcionario else 'N/A',
+            'horimetro_inicial': s.horimetro_inicial,
+            'horimetro_final': s.horimetro_final,
+            'horas_trabalhadas': s.horas_trabalhadas or 0,
+            'quantidade': s.quantidade_abastecida
+        })
+        dados_agrupados[chave]['total_litros'] += s.quantidade_abastecida
+        dados_agrupados[chave]['total_horas'] += s.horas_trabalhadas or 0
 
-    dados_para_template = [{
-        'data': s.data.strftime('%d/%m/%Y %H:%M'),
-        'veiculo_nome': s.veiculo.nome if s.veiculo else 'N/A',
-        'tipo_combustivel_nome': s.tipo_combustivel.nome if s.tipo_combustivel else 'N/A',
-        'funcao_nome': s.funcao.nome if s.funcao else 'N/A',
-        'quantidade': s.quantidade_abastecida,
-        'hodometro_horimetro': s.hodometro_horimetro or 'N/A',
-        'usuario_nome': s.usuario.username if s.usuario else 'N/A'
-    } for s in saidas]
+    # Converter o dicionário para uma lista de tuplos para o template
+    relatorio_final = sorted(dados_agrupados.items())
 
     html_renderizado = render_template(
         'relatorio_saida_combustivel_pdf.html',
-        saidas=dados_para_template,
-        total_geral=total_geral,
-        data_inicio=datetime.strptime(data_inicio_str, '%Y-%m-%d').strftime('%d/%m/%Y') if data_inicio_str else 'Início',
-        data_fim=datetime.strptime(data_fim_str, '%Y-%m-%d').strftime('%d/%m/%Y') if data_fim_str else 'Fim',
+        dados_agrupados=relatorio_final,
+        filtros_descricao=", ".join(filtros_descricao) if filtros_descricao else "Geral (sem filtros)",
         data_geracao=datetime.now().strftime('%d/%m/%Y %H:%M:%S')
     )
 
     pdf = criar_pdf(html_renderizado)
-
-    return Response(
-        pdf,
-        mimetype='application/pdf',
-        headers={'Content-Disposition': 'attachment;filename=relatorio_saida_combustivel.pdf'}
-    )
+    return Response(pdf, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=relatorio_saida_combustivel.pdf'})

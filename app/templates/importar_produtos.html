@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Produtos por NF-e{% endblock %}
+
+{% block content %}
+<section id="importar-produtos" class="content-section active">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2 flex items-center">
+            <i class="fas fa-file-import fa-fw mr-4 text-gray-500"></i>Importar Produtos via XML da NF-e
+        </h2>
+        <p class="text-gray-600 mb-6">Faça o upload do ficheiro XML de uma Nota Fiscal Eletrónica para dar entrada nos produtos de forma automática.</p>
+
+        <div class="border-t pt-6">
+            <label for="nfe-xml-upload-input" class="block font-medium text-lg mb-2">1. Selecione o Ficheiro XML</label>
+            <input type="file" id="nfe-xml-upload-input" class="w-full max-w-lg text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" accept=".xml">
+            <div id="xml-message" class="text-sm mt-2"></div>
+        </div>
+
+        <div id="produtos-container" class="mt-6 border-t pt-6 hidden">
+            <h3 class="font-medium text-lg mb-4">2. Confirme os Itens para Importação</h3>
+            <p class="text-sm text-gray-600 mb-4">Os itens da nota foram listados abaixo. Associe cada um a uma <strong>Categoria</strong> e <strong>Almoxarifado</strong> do seu sistema antes de importar.</p>
+            <div id="lista-produtos-xml" class="space-y-4">
+                </div>
+            <div class="text-right mt-6">
+                <button id="importar-produtos-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-bold">
+                    <i class="fas fa-check-circle mr-2"></i>Importar Produtos e Registar Entrada
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // --- LÓGICA DA PÁGINA DE IMPORTAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('importar-produtos')) {
+                const xmlInput = document.getElementById('nfe-xml-upload-input');
+                const xmlMessage = document.getElementById('xml-message');
+                const produtosContainer = document.getElementById('produtos-container');
+                const listaProdutosXml = document.getElementById('lista-produtos-xml');
+                const importarBtn = document.getElementById('importar-produtos-btn');
+                let fornecedorIdGlobal = null;
+
+                xmlInput.addEventListener('change', async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    xmlMessage.textContent = 'A processar o XML...';
+                    xmlMessage.className = 'text-sm mt-2 text-blue-600';
+                    produtosContainer.classList.add('hidden');
+
+                    const formData = new FormData();
+                    formData.append('nfe_xml', file);
+
+                    try {
+                        const response = await fetch('/api/produtos/ler-xml-nfe', { method: 'POST', body: formData });
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.error);
+                        
+                        fornecedorIdGlobal = result.fornecedor_id;
+
+                        const [categoriasResponse, almoxarifadosResponse] = await Promise.all([
+                            fetch('/api/categorias').then(res => res.json()),
+                            fetch('/api/almoxarifados').then(res => res.json())
+                        ]);
+                        const categoriasOptions = categoriasResponse.data.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+                        const almoxarifadosOptions = almoxarifadosResponse.data.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+
+                        listaProdutosXml.innerHTML = result.produtos.map((p, index) => `
+                            <div class="border rounded-lg p-4 bg-gray-50 produto-item" data-index="${index}">
+                                <p class="font-bold">${p.nome}</p>
+                                <p class="text-sm text-gray-600">Qtd: ${p.quantidade} ${p.unidade} | Valor Unit.: R$ ${p.preco_unitario.toFixed(2)}</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                    <div>
+                                        <label class="block text-xs font-medium">Categoria*</label>
+                                        <select class="w-full p-2 border rounded-md" name="categoria_id_${index}" required>${categoriasOptions}</select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium">Almoxarifado*</label>
+                                        <select class="w-full p-2 border rounded-md" name="almoxarifado_id_${index}" required>${almoxarifadosOptions}</select>
+                                    </div>
+                                </div>
+                                 <div class="hidden">
+                                    <input type="hidden" name="nome_${index}" value="${p.nome}">
+                                    <input type="hidden" name="unidade_${index}" value="${p.unidade}">
+                                    <input type="hidden" name="quantidade_${index}" value="${p.quantidade}">
+                                    <input type="hidden" name="preco_unitario_${index}" value="${p.preco_unitario}">
+                                    <input type="hidden" name="lote_${index}" value="${p.lote}">
+                                    <input type="hidden" name="data_validade_${index}" value="${p.data_validade}">
+                                </div>
+                            </div>
+                        `).join('');
+                        
+                        produtosContainer.classList.remove('hidden');
+                        xmlMessage.textContent = `${result.produtos.length} produto(s) encontrado(s) na nota fiscal.`;
+                        xmlMessage.className = 'text-sm mt-2 text-green-600';
+
+                    } catch (error) {
+                        xmlMessage.textContent = `Erro: ${error.message}`;
+                        xmlMessage.className = 'text-sm mt-2 text-red-600';
+                    }
+                });
+
+                importarBtn.addEventListener('click', async () => {
+                    const produtosParaImportar = [];
+                    const items = listaProdutosXml.querySelectorAll('.produto-item');
+                    let hasInvalidFields = false;
+
+                    for (const item of items) {
+                        const index = item.dataset.index;
+                        const categoriaSelect = item.querySelector(`select[name="categoria_id_${index}"]`);
+                        const almoxarifadoSelect = item.querySelector(`select[name="almoxarifado_id_${index}"]`);
+
+                        if (!categoriaSelect.value || !almoxarifadoSelect.value) {
+                            hasInvalidFields = true;
+                            categoriaSelect.classList.add('border-red-500');
+                            almoxarifadoSelect.classList.add('border-red-500');
+                        } else {
+                            categoriaSelect.classList.remove('border-red-500');
+                            almoxarifadoSelect.classList.remove('border-red-500');
+                        }
+
+                        const produto = {
+                            nome: item.querySelector(`input[name="nome_${index}"]`).value,
+                            unidade: item.querySelector(`input[name="unidade_${index}"]`).value,
+                            quantidade: item.querySelector(`input[name="quantidade_${index}"]`).value,
+                            preco_unitario: item.querySelector(`input[name="preco_unitario_${index}"]`).value,
+                            lote: item.querySelector(`input[name="lote_${index}"]`).value,
+                            data_validade: item.querySelector(`input[name="data_validade_${index}"]`).value,
+                            categoria_id: categoriaSelect.value,
+                            almoxarifado_id: almoxarifadoSelect.value,
+                            fornecedor_id: fornecedorIdGlobal
+                        };
+                        produtosParaImportar.push(produto);
+                    }
+
+                    if (hasInvalidFields) {
+                        alert('Por favor, preencha a Categoria e o Almoxarifado para todos os itens.');
+                        return;
+                    }
+
+                    importarBtn.disabled = true;
+                    importarBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>A Importar...';
+
+                    try {
+                        const response = await fetch('/api/produtos/importar-nfe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ produtos: produtosParaImportar })
+                        });
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.error);
+                        
+                        alert(result.message);
+                        produtosContainer.classList.add('hidden');
+                        xmlInput.value = '';
+                        xmlMessage.textContent = '';
+                    } catch (error) {
+                        alert(`Erro ao importar: ${error.message}`);
+                    } finally {
+                        importarBtn.disabled = false;
+                        importarBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Importar Produtos e Registar Entrada';
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}
